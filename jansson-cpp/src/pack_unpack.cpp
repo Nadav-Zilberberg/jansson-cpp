@@ -6,10 +6,30 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
-#include "jansson.hpp"
-#include "jansson_private.hpp"
-#include "utf.hpp"
-#include <string.h>
+/* C++ modernization improvements:
+ * 1. Replace C headers with C++ equivalents
+ * 2. Use C++ memory management where appropriate
+ * 3. Use C++ strings and containers
+ * 4. Add RAII for resource management
+ * 5. Use C++ type safety
+ */
+
+#include <jansson.h>
+#include <jansson_private.h>
+#include <utf.h>
+
+/* Undefine problematic C macros that conflict with C++ */
+#ifdef max
+#undef max
+#endif
+#ifdef min
+#undef min
+#endif
+
+#include <cstring>
+#include <string>
+#include <vector>
+#include <memory>
 
 typedef struct {
     int line;
@@ -46,9 +66,9 @@ static void scanner_init(scanner_t *s, json_error_t *error, size_t flags,
     s->error = error;
     s->flags = flags;
     s->fmt = s->start = fmt;
-    memset(&s->prev_token, 0, sizeof(token_t));
-    memset(&s->token, 0, sizeof(token_t));
-    memset(&s->next_token, 0, sizeof(token_t));
+    std::memset(&s->prev_token, 0, sizeof(token_t));
+    std::memset(&s->token, 0, sizeof(token_t));
+    std::memset(&s->next_token, 0, sizeof(token_t));
     s->line = 1;
     s->column = 0;
     s->pos = 0;
@@ -119,7 +139,7 @@ static json_t *pack(scanner_t *s, va_list *ap);
 static char *read_string(scanner_t *s, va_list *ap, const char *purpose, size_t *out_len,
                          int *ours, int optional) {
     char t;
-    strbuffer_t strbuff;
+    strbuffer strbuff;
     const char *str;
     size_t length;
 
@@ -140,7 +160,7 @@ static char *read_string(scanner_t *s, va_list *ap, const char *purpose, size_t 
             return NULL;
         }
 
-        length = strlen(str);
+        length = std::strlen(str);
 
         if (!utf8_check_string(str, length)) {
             set_error(s, "<args>", json_error_invalid_utf8, "Invalid UTF-8 %s", purpose);
@@ -149,7 +169,15 @@ static char *read_string(scanner_t *s, va_list *ap, const char *purpose, size_t 
         }
 
         *out_len = length;
-        return (char *)str;
+        char *result = static_cast<char*>(jsonp_malloc(length + 1));
+        if (!result) {
+            set_error(s, "<internal>", json_error_out_of_memory, "Out of memory");
+            s->has_error = 1;
+            return NULL;
+        }
+        std::strcpy(result, str);
+        *ours = 1;
+        return result;
     } else if (optional) {
         set_error(s, "<format>", json_error_invalid_format,
                   "Cannot use '%c' on optional strings", t);
@@ -158,12 +186,9 @@ static char *read_string(scanner_t *s, va_list *ap, const char *purpose, size_t 
         return NULL;
     }
 
-    if (strbuffer_init(&strbuff)) {
-        set_error(s, "<internal>", json_error_out_of_memory, "Out of memory");
-        s->has_error = 1;
-    }
+    strbuff.init();
 
-    while (1) {
+    while (true) {
         str = va_arg(*ap, const char *);
         if (!str) {
             set_error(s, "<args>", json_error_null_value, "NULL %s", purpose);
@@ -178,10 +203,10 @@ static char *read_string(scanner_t *s, va_list *ap, const char *purpose, size_t 
             length = va_arg(*ap, size_t);
         } else {
             prev_token(s);
-            length = s->has_error ? 0 : strlen(str);
+            length = s->has_error ? 0 : std::strlen(str);
         }
 
-        if (!s->has_error && strbuffer_append_bytes(&strbuff, str, length) == -1) {
+        if (!s->has_error && strbuff.append_bytes(str, length) == -1) {
             set_error(s, "<internal>", json_error_out_of_memory, "Out of memory");
             s->has_error = 1;
         }
@@ -194,20 +219,28 @@ static char *read_string(scanner_t *s, va_list *ap, const char *purpose, size_t 
     }
 
     if (s->has_error) {
-        strbuffer_close(&strbuff);
         return NULL;
     }
 
-    if (!utf8_check_string(strbuff.value, strbuff.length)) {
+    const char* result_str = strbuff.value();
+    size_t result_len = strbuff.length();
+    
+    if (!utf8_check_string(result_str, result_len)) {
         set_error(s, "<args>", json_error_invalid_utf8, "Invalid UTF-8 %s", purpose);
-        strbuffer_close(&strbuff);
         s->has_error = 1;
         return NULL;
     }
 
-    *out_len = strbuff.length;
+    *out_len = result_len;
     *ours = 1;
-    return strbuffer_steal_value(&strbuff);
+    char *result = static_cast<char*>(jsonp_malloc(result_len + 1));
+    if (!result) {
+        set_error(s, "<internal>", json_error_out_of_memory, "Out of memory");
+        s->has_error = 1;
+        return NULL;
+    }
+    std::strcpy(result, result_str);
+    return result;
 }
 
 static json_t *pack_object(scanner_t *s, va_list *ap) {
@@ -243,9 +276,6 @@ static json_t *pack_object(scanner_t *s, va_list *ap) {
 
         value = pack(s, ap);
         if (!value) {
-            if (ours)
-                jsonp_free(key);
-
             if (valueOptional != '*') {
                 set_error(s, "<args>", json_error_null_value, "NULL object value");
                 s->has_error = 1;
@@ -522,7 +552,7 @@ static int unpack_object(scanner_t *s, json_t *root, va_list *ap) {
             set_error(s, "<args>", json_error_null_value, "NULL object key");
             goto out;
         }
-        key_len = strlen(key);
+        key_len = std::strlen(key);
 
         next_token(s);
 
@@ -546,7 +576,7 @@ static int unpack_object(scanner_t *s, json_t *root, va_list *ap) {
         if (unpack(s, value, ap))
             goto out;
 
-        hashtable_set(&key_set, key, key_len, json_null());
+        hashtable_set(&key_set, key, key_len, value);
         next_token(s);
     }
 
@@ -559,33 +589,32 @@ static int unpack_object(scanner_t *s, json_t *root, va_list *ap) {
         size_t key_len;
         /* keys_res is 1 for uninitialized, 0 for success, -1 for error. */
         int keys_res = 1;
-        strbuffer_t unrecognized_keys;
+        strbuffer unrecognized_keys;
         json_t *value;
         long unpacked = 0;
 
         if (gotopt || json_object_size(root) != key_set.size) {
             json_object_keylen_foreach(root, key, key_len, value) {
-                if (!static_cast<json_t*>(hashtable_get(&key_set, key, key_len)) {
+                if (!static_cast<json_t*>(hashtable_get(&key_set, key, key_len))) {
                     unpacked++;
 
                     /* Save unrecognized keys for the error message */
                     if (keys_res == 1) {
-                        keys_res = strbuffer_init(&unrecognized_keys);
+                        keys_res = unrecognized_keys.init();
                     } else if (!keys_res) {
-                        keys_res = strbuffer_append_bytes(&unrecognized_keys, ", ", 2);
+                        keys_res = unrecognized_keys.append_bytes(", ", 2);
                     }
 
                     if (!keys_res)
                         keys_res =
-                            strbuffer_append_bytes(&unrecognized_keys, key, key_len);
+                            unrecognized_keys.append_bytes(key, key_len);
                 }
             }
         }
         if (unpacked) {
             set_error(s, "<validation>", json_error_end_of_input_expected,
                       "%li object item(s) left unpacked: %s", unpacked,
-                      keys_res ? "<unknown>" : strbuffer_value(&unrecognized_keys));
-            strbuffer_close(&unrecognized_keys);
+                      keys_res ? "<unknown>" : unrecognized_keys.value());
             goto out;
         }
     }
@@ -630,7 +659,7 @@ static int unpack_array(scanner_t *s, json_t *root, va_list *ap) {
             continue;
         }
 
-        if (!strchr(unpack_value_starters, token(s))) {
+        if (!std::strchr(unpack_value_starters, token(s))) {
             set_error(s, "<format>", json_error_invalid_format,
                       "Unexpected format character '%c'", token(s));
             return -1;
