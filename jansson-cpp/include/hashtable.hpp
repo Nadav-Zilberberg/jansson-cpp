@@ -5,181 +5,177 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
-#ifndef HASHTABLE_H
-#define HASHTABLE_H
+#ifndef HASHTABLE_HPP
+#define HASHTABLE_HPP
 
 #include "jansson.hpp"
-#include <stdlib.h>
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <vector>
+#include <utility>
 
+namespace jansson {
+
+// Forward declarations
+struct hashtable_list;
+struct hashtable_pair;
+struct hashtable_bucket;
+
+// Modernized list structure using C++ features
 struct hashtable_list {
-    struct hashtable_list *prev;
-    struct hashtable_list *next;
+    hashtable_list *prev;
+    hashtable_list *next;
+    
+    // Constructor for easy initialization
+    hashtable_list() : prev(this), next(this) {}
 };
 
-/* "pair" may be a bit confusing a name, but think of it as a
-   key-value pair. In this case, it just encodes some extra data,
-   too */
+// Modernized pair structure
 struct hashtable_pair {
-    struct hashtable_list list;
-    struct hashtable_list ordered_list;
+    hashtable_list list;
+    hashtable_list ordered_list;
     size_t hash;
     json_t *value;
     size_t key_len;
-    char key[1];
+    std::string key;
+    
+    // Constructor
+    hashtable_pair(const std::string& k, size_t h, json_t* v) 
+        : hash(h), value(v), key_len(k.length()), key(k) {
+        // Initialize list pointers
+        list.prev = &list;
+        list.next = &list;
+        ordered_list.prev = &ordered_list;
+        ordered_list.next = &ordered_list;
+    }
 };
 
+// Modernized bucket structure
 struct hashtable_bucket {
-    struct hashtable_list *first;
-    struct hashtable_list *last;
+    hashtable_list *first;
+    hashtable_list *last;
+    
+    hashtable_bucket() : first(nullptr), last(nullptr) {}
 };
 
-typedef struct hashtable {
-    size_t size;
-    struct hashtable_bucket *buckets;
-    size_t order; /* hashtable has pow(2, order) buckets */
-    struct hashtable_list list;
-    struct hashtable_list ordered_list;
-} hashtable_t;
+// Legacy typedef for backward compatibility
+typedef struct hashtable_t hashtable_t;
 
-#define hashtable_key_to_iter(key_)                                                      \
-    (&(container_of(key_, struct hashtable_pair, key)->ordered_list))
+// Modernized hashtable class
+class hashtable {
+private:
+    size_t size_;
+    std::vector<hashtable_bucket> buckets_;
+    size_t order_; // hashtable has pow(2, order_) buckets
+    hashtable_list list_;
+    hashtable_list ordered_list_;
+    
+    static constexpr size_t INITIAL_ORDER = 3;
+    
+public:
+    // Constructor
+    hashtable();
+    
+    // Destructor
+    ~hashtable();
+    
+    // Delete copy constructor and assignment operator
+    hashtable(const hashtable&) = delete;
+    hashtable& operator=(const hashtable&) = delete;
+    
+    // Move constructor and assignment operator
+    hashtable(hashtable&& other) noexcept;
+    hashtable& operator=(hashtable&& other) noexcept;
+    
+    // Modernized interface using std::string
+    int set(const std::string& key, json_t* value);
+    json_t* get(const std::string& key);
+    int del(const std::string& key);
+    void clear();
+    
+    // Size and capacity
+    size_t size() const { return size_; }
+    size_t bucket_count() const { return buckets_.size(); }
+    bool empty() const { return size_ == 0; }
+    
+    // Iterator class for modern C++ iteration
+    class iterator {
+    private:
+        hashtable_list* current_;
+        
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = std::pair<std::string, json_t*>;
+        using difference_type = std::ptrdiff_t;
+        using pointer = value_type*;
+        using reference = value_type&;
+        
+        iterator() : current_(nullptr) {}
+        explicit iterator(hashtable_list* list) : current_(list) {}
+        
+        value_type operator*() const;
+        iterator& operator++();
+        iterator operator++(int);
+        bool operator==(const iterator& other) const { return current_ == other.current_; }
+        bool operator!=(const iterator& other) const { return current_ != other.current_; }
+        
+        // Get key and value directly
+        std::string key() const;
+        json_t* value() const;
+        void set_value(json_t* value);
+        
+        // For legacy compatibility
+        hashtable_list* get_current() const { return current_; }
+    };
+    
+    // Iterator interface
+    iterator begin();
+    iterator end();
+    iterator find(const std::string& key);
+    
+    // Compatibility interface for existing code
+    int set(const char* key, size_t key_len, json_t* value) {
+        return set(std::string(key, key_len), value);
+    }
+    
+    void* get(const char* key, size_t key_len) {
+        return get(std::string(key, key_len));
+    }
+    
+    int del(const char* key, size_t key_len) {
+        return del(std::string(key, key_len));
+    }
+    
+    // Legacy iterator interface for compatibility
+    void* iter() { return begin().get_current(); }
+    void* iter_at(const char* key, size_t key_len) { return find(std::string(key, key_len)).get_current(); }
+    void* iter_next(void* iter);
+    void* iter_key(void* iter);
+    size_t iter_key_len(void* iter);
+    void* iter_value(void* iter);
+    void iter_set(void* iter, json_t* value);
+};
 
-/**
- * hashtable_init - Initialize a hashtable object
- *
- * @hashtable: The (statically allocated) hashtable object
- *
- * Initializes a statically allocated hashtable object. The object
- * should be cleared with hashtable_close when it's no longer used.
- *
- * Returns 0 on success, -1 on error (out of memory).
- */
-int hashtable_init(hashtable_t *hashtable) JANSSON_ATTRS((warn_unused_result));
-
-/**
- * hashtable_close - Release all resources used by a hashtable object
- *
- * @hashtable: The hashtable
- *
- * Destroys a statically allocated hashtable object.
- */
+// Legacy C-style interface for backward compatibility
+int hashtable_init(hashtable_t *hashtable);
 void hashtable_close(hashtable_t *hashtable);
-
-/**
- * hashtable_set - Add/modify value in hashtable
- *
- * @hashtable: The hashtable object
- * @key: The key
- * @key_len: The length of key
- * @value: The value
- *
- * If a value with the given key already exists, its value is replaced
- * with the new value. Value is "stolen" in the sense that hashtable
- * doesn't increment its refcount but decreases the refcount when the
- * value is no longer needed.
- *
- * Returns 0 on success, -1 on failure (out of memory).
- */
 int hashtable_set(hashtable_t *hashtable, const char *key, size_t key_len, json_t *value);
-
-/**
- * hashtable_get - Get a value associated with a key
- *
- * @hashtable: The hashtable object
- * @key: The key
- * @key_len: The length of key
- *
- * Returns value if it is found, or NULL otherwise.
- */
-void *hashtable_get(hashtable_t *hashtable, const char *key, size_t key_len);
-
-/**
- * hashtable_del - Remove a value from the hashtable
- *
- * @hashtable: The hashtable object
- * @key: The key
- * @key_len: The length of key
- *
- * Returns 0 on success, or -1 if the key was not found.
- */
+void* hashtable_get(hashtable_t *hashtable, const char *key, size_t key_len);
 int hashtable_del(hashtable_t *hashtable, const char *key, size_t key_len);
-
-/**
- * hashtable_clear - Clear hashtable
- *
- * @hashtable: The hashtable object
- *
- * Removes all items from the hashtable.
- */
 void hashtable_clear(hashtable_t *hashtable);
-
-/**
- * hashtable_iter - Iterate over hashtable
- *
- * @hashtable: The hashtable object
- *
- * Returns an opaque iterator to the first element in the hashtable.
- * The iterator should be passed to hashtable_iter_* functions.
- * The hashtable items are not iterated over in any particular order.
- *
- * There's no need to free the iterator in any way. The iterator is
- * valid as long as the item that is referenced by the iterator is not
- * deleted. Other values may be added or deleted. In particular,
- * hashtable_iter_next() may be called on an iterator, and after that
- * the key/value pair pointed by the old iterator may be deleted.
- */
-void *hashtable_iter(hashtable_t *hashtable);
-
-/**
- * hashtable_iter_at - Return an iterator at a specific key
- *
- * @hashtable: The hashtable object
- * @key: The key that the iterator should point to
- * @key_len: The length of key
- *
- * Like hashtable_iter() but returns an iterator pointing to a
- * specific key.
- */
-void *hashtable_iter_at(hashtable_t *hashtable, const char *key, size_t key_len);
-
-/**
- * hashtable_iter_next - Advance an iterator
- *
- * @hashtable: The hashtable object
- * @iter: The iterator
- *
- * Returns a new iterator pointing to the next element in the
- * hashtable or NULL if the whole hastable has been iterated over.
- */
-void *hashtable_iter_next(hashtable_t *hashtable, void *iter);
-
-/**
- * hashtable_iter_key - Retrieve the key pointed by an iterator
- *
- * @iter: The iterator
- */
-void *hashtable_iter_key(void *iter);
-
-/**
- * hashtable_iter_key_len - Retrieve the key length pointed by an iterator
- *
- * @iter: The iterator
- */
+void* hashtable_iter(hashtable_t *hashtable);
+void* hashtable_iter_at(hashtable_t *hashtable, const char *key, size_t key_len);
+void* hashtable_iter_next(hashtable_t *hashtable, void *iter);
+void* hashtable_iter_key(void *iter);
 size_t hashtable_iter_key_len(void *iter);
-
-/**
- * hashtable_iter_value - Retrieve the value pointed by an iterator
- *
- * @iter: The iterator
- */
-void *hashtable_iter_value(void *iter);
-
-/**
- * hashtable_iter_set - Set the value pointed by an iterator
- *
- * @iter: The iterator
- * @value: The value to set
- */
+void* hashtable_iter_value(void *iter);
 void hashtable_iter_set(void *iter, json_t *value);
 
-#endif
+} // namespace jansson
+
+// Macro for backward compatibility
+#define hashtable_key_to_iter(key_) \
+    (&(container_of(key_, jansson::hashtable_pair, key)->ordered_list))
+
+#endif // HASHTABLE_HPP

@@ -9,332 +9,418 @@
 #include <jansson_private_config.h>
 #endif
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
+#include <algorithm>
+#include <stdexcept>
 
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
 
-#include "hashtable.hpp"
-#include "jansson_private.hpp" /* for container_of() */
+#include "jansson-cpp/include/hashtable.hpp"
+#include "jansson-cpp/include/jansson_private.hpp" /* for container_of() */
 #include <jansson_config.h>  /* for JSON_INLINE */
 
 #ifndef INITIAL_HASHTABLE_ORDER
 #define INITIAL_HASHTABLE_ORDER 3
 #endif
 
-typedef struct hashtable_list list_t;
-typedef struct hashtable_pair pair_t;
-typedef struct hashtable_bucket bucket_t;
-
 extern volatile uint32_t hashtable_seed;
 
 /* Implementation of the hash function */
-#include "lookup3.hpp"
+#include "jansson-cpp/src/lookup3.hpp"
 
-#define list_to_pair(list_)         container_of(list_, pair_t, list)
-#define ordered_list_to_pair(list_) container_of(list_, pair_t, ordered_list)
-#define hash_str(key, len)          ((size_t)lookup3::hashlittle((key), len, hashtable_seed))
+namespace jansson {
 
-static JSON_INLINE void list_init(list_t *list) {
-    list->next = list;
-    list->prev = list;
+// Helper functions
+static size_t hash_str(const std::string& key) {
+    return static_cast<size_t>(lookup3::hashlittle(key.c_str(), key.length(), hashtable_seed));
 }
 
-static JSON_INLINE void list_insert(list_t *list, list_t *node) {
-    node->next = list;
-    node->prev = list->prev;
-    list->prev->next = node;
-    list->prev = node;
+static size_t hashsize(size_t order) {
+    return static_cast<size_t>(1) << order;
 }
 
-static JSON_INLINE void list_remove(list_t *list) {
-    list->prev->next = list->next;
-    list->next->prev = list->prev;
-}
-
-static JSON_INLINE int bucket_is_empty(hashtable_t *hashtable, bucket_t *bucket) {
-    return bucket->first == &hashtable->list && bucket->first == bucket->last;
-}
-
-static void insert_to_bucket(hashtable_t *hashtable, bucket_t *bucket, list_t *list) {
-    if (bucket_is_empty(hashtable, bucket)) {
-        list_insert(&hashtable->list, list);
-        bucket->first = bucket->last = list;
-    } else {
-        list_insert(bucket->first, list);
-        bucket->first = list;
+// hashtable implementation
+hashtable::hashtable() : size_(0), order_(INITIAL_ORDER) {
+    size_t bucket_count = hashsize(order_);
+    buckets_.resize(bucket_count);
+    
+    // Initialize list pointers
+    list_.prev = &list_;
+    list_.next = &list_;
+    ordered_list_.prev = &ordered_list_;
+    ordered_list_.next = &ordered_list_;
+    
+    // Initialize buckets
+    for (auto& bucket : buckets_) {
+        bucket.first = bucket.last = &list_;
     }
 }
 
-static pair_t *hashtable_find_pair(hashtable_t *hashtable, bucket_t *bucket,
-                                   const char *key, size_t key_len, size_t hash) {
-    list_t *list;
-    pair_t *pair;
+hashtable::~hashtable() {
+    clear();
+}
 
-    if (bucket_is_empty(hashtable, bucket))
-        return NULL;
+hashtable::hashtable(hashtable&& other) noexcept 
+    : size_(other.size_), buckets_(std::move(other.buckets_)), 
+      order_(other.order_), list_(other.list_), ordered_list_(other.ordered_list_) {
+    // Reset other
+    other.size_ = 0;
+    other.order_ = INITIAL_ORDER;
+    other.buckets_.clear();
+    other.list_.prev = &other.list_;
+    other.list_.next = &other.list_;
+    other.ordered_list_.prev = &other.ordered_list_;
+    other.ordered_list_.next = &other.ordered_list_;
+}
 
-    list = bucket->first;
-    while (1) {
-        pair = list_to_pair(list);
-        if (pair->hash == hash && pair->key_len == key_len &&
-            memcmp(pair->key, key, key_len) == 0)
+hashtable& hashtable::operator=(hashtable&& other) noexcept {
+    if (this != &other) {
+        clear();
+        
+        size_ = other.size_;
+        buckets_ = std::move(other.buckets_);
+        order_ = other.order_;
+        list_ = other.list_;
+        ordered_list_ = other.ordered_list_;
+        
+        // Reset other
+        other.size_ = 0;
+        other.order_ = INITIAL_ORDER;
+        other.buckets_.clear();
+        other.list_.prev = &other.list_;
+        other.list_.next = &other.list_;
+        other.ordered_list_.prev = &other.ordered_list_;
+        other.ordered_list_.next = &other.ordered_list_;
+    }
+    return *this;
+}
+
+// Helper function to find a pair
+hashtable_pair* hashtable::find_pair(const std::string& key, size_t hash) {
+    size_t index = hash & (hashsize(order_) - 1);
+    auto& bucket = buckets_[index];
+    
+    if (bucket.first == &list_) {
+        return nullptr; // Empty bucket
+    }
+    
+    hashtable_list* current = bucket.first;
+    while (true) {
+        auto* pair = container_of(current, hashtable_pair, list);
+        if (pair->hash == hash && pair->key == key) {
             return pair;
-
-        if (list == bucket->last)
+        }
+        if (current == bucket.last) {
             break;
-
-        list = list->next;
+        }
+        current = current->next;
     }
-
-    return NULL;
+    
+    return nullptr;
 }
 
-/* returns 0 on success, -1 if key was not found */
-static int hashtable_do_del(hashtable_t *hashtable, const char *key, size_t key_len,
-                            size_t hash) {
-    pair_t *pair;
-    bucket_t *bucket;
-    size_t index;
-
-    index = hash & hashmask(hashtable->order);
-    bucket = &hashtable->buckets[index];
-
-    pair = hashtable_find_pair(hashtable, bucket, key, key_len, hash);
-    if (!pair)
-        return -1;
-
-    if (&pair->list == bucket->first && &pair->list == bucket->last)
-        bucket->first = bucket->last = &hashtable->list;
-
-    else if (&pair->list == bucket->first)
-        bucket->first = pair->list.next;
-
-    else if (&pair->list == bucket->last)
-        bucket->last = pair->list.prev;
-
-    list_remove(&pair->list);
-    list_remove(&pair->ordered_list);
-    json_decref(pair->value);
-
-    jsonp_free(pair);
-    hashtable->size--;
-
-    return 0;
-}
-
-static void hashtable_do_clear(hashtable_t *hashtable) {
-    list_t *list, *next;
-    pair_t *pair;
-
-    for (list = hashtable->list.next; list != &hashtable->list; list = next) {
-        next = list->next;
-        pair = list_to_pair(list);
-        json_decref(pair->value);
-        jsonp_free(pair);
-    }
-}
-
-static int hashtable_do_rehash(hashtable_t *hashtable) {
-    list_t *list, *next;
-    pair_t *pair;
-    size_t i, index, new_size, new_order;
-    struct hashtable_bucket *new_buckets;
-
-    new_order = hashtable->order + 1;
-    new_size = hashsize(new_order);
-
-    new_buckets = static_cast<char*>(jsonp_malloc(new_size * sizeof(bucket_t));
-    if (!new_buckets)
-        return -1;
-
-    jsonp_free(hashtable->buckets);
-    hashtable->buckets = new_buckets;
-    hashtable->order = new_order;
-
-    for (i = 0; i < new_size; i++) {
-        hashtable->buckets[i].first = hashtable->buckets[i].last = &hashtable->list;
-    }
-
-    list = hashtable->list.next;
-    list_init(&hashtable->list);
-
-    for (; list != &hashtable->list; list = next) {
-        next = list->next;
-        pair = list_to_pair(list);
-        index = pair->hash % new_size;
-        insert_to_bucket(hashtable, &hashtable->buckets[index], &pair->list);
-    }
-
-    return 0;
-}
-
-int hashtable_init(hashtable_t *hashtable) {
-    size_t i;
-
-    hashtable->size = 0;
-    hashtable->order = INITIAL_HASHTABLE_ORDER;
-    hashtable->buckets = static_cast<char*>(jsonp_malloc(hashsize(hashtable->order) * sizeof(bucket_t));
-    if (!hashtable->buckets)
-        return -1;
-
-    list_init(&hashtable->list);
-    list_init(&hashtable->ordered_list);
-
-    for (i = 0; i < hashsize(hashtable->order); i++) {
-        hashtable->buckets[i].first = hashtable->buckets[i].last = &hashtable->list;
-    }
-
-    return 0;
-}
-
-void hashtable_close(hashtable_t *hashtable) {
-    hashtable_do_clear(hashtable);
-    jsonp_free(hashtable->buckets);
-}
-
-static pair_t *init_pair(json_t *value, const char *key, size_t key_len, size_t hash) {
-    pair_t *pair;
-
-    /* offsetof(...) returns the size of pair_t without the last,
-   flexible member. This way, the correct amount is
-   allocated. */
-
-    if (key_len >= (size_t)-1 - offsetof(pair_t, key)) {
-        /* Avoid an overflow if the key is very long */
-        return NULL;
-    }
-
-    pair = static_cast<char*>(jsonp_malloc(offsetof(pair_t, key) + key_len + 1);
-
-    if (!pair)
-        return NULL;
-
-    pair->hash = hash;
-    memcpy(pair->key, key, key_len);
-    pair->key[key_len] = '\0';
-    pair->key_len = key_len;
-    pair->value = value;
-
-    list_init(&pair->list);
-    list_init(&pair->ordered_list);
-
-    return pair;
-}
-
-int hashtable_set(hashtable_t *hashtable, const char *key, size_t key_len,
-                  json_t *value) {
-    pair_t *pair;
-    bucket_t *bucket;
-    size_t hash, index;
-
-    /* rehash if the load ratio exceeds 1 */
-    if (hashtable->size >= hashsize(hashtable->order))
-        if (hashtable_do_rehash(hashtable))
-            return -1;
-
-    hash = hash_str(key, key_len);
-    index = hash & hashmask(hashtable->order);
-    bucket = &hashtable->buckets[index];
-    pair = hashtable_find_pair(hashtable, bucket, key, key_len, hash);
-
-    if (pair) {
-        json_decref(pair->value);
-        pair->value = value;
+// Helper function to insert into bucket
+void hashtable::insert_to_bucket(size_t index, hashtable_pair* pair) {
+    auto& bucket = buckets_[index];
+    
+    if (bucket.first == &list_) {
+        // Empty bucket
+        bucket.first = bucket.last = &pair->list;
+        pair->list.next = &list_;
+        pair->list.prev = list_.prev;
+        list_.prev->next = &pair->list;
+        list_.prev = &pair->list;
     } else {
-        pair = init_pair(value, key, key_len, hash);
-
-        if (!pair)
-            return -1;
-
-        insert_to_bucket(hashtable, bucket, &pair->list);
-        list_insert(&hashtable->ordered_list, &pair->ordered_list);
-
-        hashtable->size++;
+        // Insert at the beginning of the bucket
+        pair->list.next = bucket.first;
+        pair->list.prev = bucket.first->prev;
+        bucket.first->prev->next = &pair->list;
+        bucket.first->prev = &pair->list;
+        bucket.first = &pair->list;
     }
-    return 0;
+    
+    // Add to ordered list
+    pair->ordered_list.next = &ordered_list_;
+    pair->ordered_list.prev = ordered_list_.prev;
+    ordered_list_.prev->next = &pair->ordered_list;
+    ordered_list_.prev = &pair->ordered_list;
 }
 
-void *static_cast<json_t*>(hashtable_get(hashtable_t *hashtable, const char *key, size_t key_len) {
-    pair_t *pair;
-    size_t hash;
-    bucket_t *bucket;
-
-    hash = hash_str(key, key_len);
-    bucket = &hashtable->buckets[hash & hashmask(hashtable->order)];
-
-    pair = hashtable_find_pair(hashtable, bucket, key, key_len, hash);
-    if (!pair)
-        return NULL;
-
-    return pair->value;
-}
-
-int hashtable_del(hashtable_t *hashtable, const char *key, size_t key_len) {
-    size_t hash = hash_str(key, key_len);
-    return hashtable_do_del(hashtable, key, key_len, hash);
-}
-
-void hashtable_clear(hashtable_t *hashtable) {
-    size_t i;
-
-    hashtable_do_clear(hashtable);
-
-    for (i = 0; i < hashsize(hashtable->order); i++) {
-        hashtable->buckets[i].first = hashtable->buckets[i].last = &hashtable->list;
+int hashtable::set(const std::string& key, json_t* value) {
+    size_t hash = hash_str(key);
+    auto* existing_pair = find_pair(key, hash);
+    
+    if (existing_pair) {
+        // Replace existing value
+        json_decref(existing_pair->value);
+        existing_pair->value = value;
+        return 0;
     }
-
-    list_init(&hashtable->list);
-    list_init(&hashtable->ordered_list);
-    hashtable->size = 0;
+    
+    // Check if we need to resize
+    if (size_ >= hashsize(order_) * 2) {
+        // Resize needed - for simplicity, we'll just grow the buckets
+        size_t new_order = order_ + 1;
+        size_t new_bucket_count = hashsize(new_order);
+        std::vector<hashtable_bucket> new_buckets(new_bucket_count);
+        
+        // Initialize new buckets
+        for (auto& bucket : new_buckets) {
+            bucket.first = bucket.last = &list_;
+        }
+        
+        // Rehash all existing pairs
+        hashtable_list* current = ordered_list_.next;
+        while (current != &ordered_list_) {
+            auto* pair = container_of(current, hashtable_pair, ordered_list);
+            current = current->next;
+            
+            size_t new_index = pair->hash & (new_bucket_count - 1);
+            auto& new_bucket = new_buckets[new_index];
+            
+            // Insert into new bucket
+            if (new_bucket.first == &list_) {
+                new_bucket.first = new_bucket.last = &pair->list;
+                pair->list.next = &list_;
+                pair->list.prev = list_.prev;
+                list_.prev->next = &pair->list;
+                list_.prev = &pair->list;
+            } else {
+                pair->list.next = new_bucket.first;
+                pair->list.prev = new_bucket.first->prev;
+                new_bucket.first->prev->next = &pair->list;
+                new_bucket.first->prev = &pair->list;
+                new_bucket.first = &pair->list;
+            }
+        }
+        
+        buckets_ = std::move(new_buckets);
+        order_ = new_order;
+    }
+    
+    // Create new pair
+    try {
+        auto* new_pair = new hashtable_pair(key, hash, value);
+        size_t index = hash & (hashsize(order_) - 1);
+        insert_to_bucket(index, new_pair);
+        size_++;
+        return 0;
+    } catch (...) {
+        return -1;
+    }
 }
 
-void *hashtable_iter(hashtable_t *hashtable) {
-    return hashtable_iter_next(hashtable, &hashtable->ordered_list);
+json_t* hashtable::get(const std::string& key) {
+    size_t hash = hash_str(key);
+    auto* pair = find_pair(key, hash);
+    return pair ? pair->value : nullptr;
 }
 
-void *hashtable_iter_at(hashtable_t *hashtable, const char *key, size_t key_len) {
-    pair_t *pair;
-    size_t hash;
-    bucket_t *bucket;
-
-    hash = hash_str(key, key_len);
-    bucket = &hashtable->buckets[hash & hashmask(hashtable->order)];
-
-    pair = hashtable_find_pair(hashtable, bucket, key, key_len, hash);
-    if (!pair)
-        return NULL;
-
-    return &pair->ordered_list;
+int hashtable::del(const std::string& key) {
+    size_t hash = hash_str(key);
+    size_t index = hash & (hashsize(order_) - 1);
+    auto& bucket = buckets_[index];
+    
+    if (bucket.first == &list_) {
+        return -1; // Key not found
+    }
+    
+    hashtable_list* current = bucket.first;
+    while (true) {
+        auto* pair = container_of(current, hashtable_pair, list);
+        if (pair->hash == hash && pair->key == key) {
+            // Remove from bucket
+            if (bucket.first == bucket.last) {
+                // Only element in bucket
+                bucket.first = bucket.last = &list_;
+            } else if (current == bucket.first) {
+                bucket.first = current->next;
+            } else if (current == bucket.last) {
+                bucket.last = current->prev;
+            }
+            
+            // Remove from lists
+            current->prev->next = current->next;
+            current->next->prev = current->prev;
+            
+            pair->ordered_list.prev->next = pair->ordered_list.next;
+            pair->ordered_list.next->prev = pair->ordered_list.prev;
+            
+            // Free memory
+            json_decref(pair->value);
+            delete pair;
+            size_--;
+            return 0;
+        }
+        
+        if (current == bucket.last) {
+            break;
+        }
+        current = current->next;
+    }
+    
+    return -1; // Key not found
 }
 
-void *hashtable_iter_next(hashtable_t *hashtable, void *iter) {
-    list_t *list = (list_t *)iter;
-    if (list->next == &hashtable->ordered_list)
-        return NULL;
-    return list->next;
+void hashtable::clear() {
+    hashtable_list* current = ordered_list_.next;
+    while (current != &ordered_list_) {
+        auto* pair = container_of(current, hashtable_pair, ordered_list);
+        current = current->next;
+        json_decref(pair->value);
+        delete pair;
+    }
+    
+    size_ = 0;
+    
+    // Reset buckets
+    for (auto& bucket : buckets_) {
+        bucket.first = bucket.last = &list_;
+    }
+    
+    // Reset lists
+    list_.prev = &list_;
+    list_.next = &list_;
+    ordered_list_.prev = &ordered_list_;
+    ordered_list_.next = &ordered_list_;
 }
 
-void *static_cast<const char*>(hashtable_iter_key(void *iter) {
-    pair_t *pair = ordered_list_to_pair((list_t *)iter);
+// Iterator implementation
+hashtable::iterator hashtable::begin() {
+    if (ordered_list_.next == &ordered_list_) {
+        return end();
+    }
+    return iterator(ordered_list_.next);
+}
+
+hashtable::iterator hashtable::end() {
+    return iterator(&ordered_list_);
+}
+
+hashtable::iterator hashtable::find(const std::string& key) {
+    size_t hash = hash_str(key);
+    auto* pair = find_pair(key, hash);
+    return pair ? iterator(&pair->ordered_list) : end();
+}
+
+hashtable::iterator::value_type hashtable::iterator::operator*() const {
+    auto* pair = container_of(current_, hashtable_pair, ordered_list);
+    return std::make_pair(pair->key, pair->value);
+}
+
+hashtable::iterator& hashtable::iterator::operator++() {
+    current_ = current_->next;
+    return *this;
+}
+
+hashtable::iterator hashtable::iterator::operator++(int) {
+    iterator temp = *this;
+    current_ = current_->next;
+    return temp;
+}
+
+std::string hashtable::iterator::key() const {
+    auto* pair = container_of(current_, hashtable_pair, ordered_list);
     return pair->key;
 }
 
-size_t hashtable_iter_key_len(void *iter) {
-    pair_t *pair = ordered_list_to_pair((list_t *)iter);
-    return pair->key_len;
-}
-
-void *hashtable_iter_value(void *iter) {
-    pair_t *pair = ordered_list_to_pair((list_t *)iter);
+json_t* hashtable::iterator::value() const {
+    auto* pair = container_of(current_, hashtable_pair, ordered_list);
     return pair->value;
 }
 
-void hashtable_iter_set(void *iter, json_t *value) {
-    pair_t *pair = ordered_list_to_pair((list_t *)iter);
-
+void hashtable::iterator::set_value(json_t* value) {
+    auto* pair = container_of(current_, hashtable_pair, ordered_list);
     json_decref(pair->value);
     pair->value = value;
 }
+
+// Legacy iterator interface
+void* hashtable::iter_next(void* iter) {
+    if (!iter) return nullptr;
+    auto* list = static_cast<hashtable_list*>(iter);
+    list = list->next;
+    return (list == &ordered_list_) ? nullptr : list;
+}
+
+void* hashtable::iter_key(void* iter) {
+    if (!iter) return nullptr;
+    auto* pair = container_of(static_cast<hashtable_list*>(iter), hashtable_pair, ordered_list);
+    return const_cast<char*>(pair->key.c_str());
+}
+
+void* hashtable::iter_value(void* iter) {
+    if (!iter) return nullptr;
+    auto* pair = container_of(static_cast<hashtable_list*>(iter), hashtable_pair, ordered_list);
+    return pair->value;
+}
+
+void hashtable::iter_set(void* iter, json_t* value) {
+    if (!iter) return;
+    auto* pair = container_of(static_cast<hashtable_list*>(iter), hashtable_pair, ordered_list);
+    json_decref(pair->value);
+    pair->value = value;
+}
+
+// Legacy C-style interface implementation
+int hashtable_init(hashtable_t *hashtable) {
+    try {
+        new(hashtable) hashtable();
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
+void hashtable_close(hashtable_t *hashtable) {
+    static_cast<hashtable*>(hashtable)->~hashtable();
+}
+
+int hashtable_set(hashtable_t *hashtable, const char *key, size_t key_len, json_t *value) {
+    return static_cast<hashtable*>(hashtable)->set(key, key_len, value);
+}
+
+void* hashtable_get(hashtable_t *hashtable, const char *key, size_t key_len) {
+    return static_cast<hashtable*>(hashtable)->get(key, key_len);
+}
+
+int hashtable_del(hashtable_t *hashtable, const char *key, size_t key_len) {
+    return static_cast<hashtable*>(hashtable)->del(key, key_len);
+}
+
+void hashtable_clear(hashtable_t *hashtable) {
+    static_cast<hashtable*>(hashtable)->clear();
+}
+
+void* hashtable_iter(hashtable_t *hashtable) {
+    return static_cast<hashtable*>(hashtable)->iter();
+}
+
+void* hashtable_iter_at(hashtable_t *hashtable, const char *key, size_t key_len) {
+    return static_cast<hashtable*>(hashtable)->iter_at(key, key_len);
+}
+
+void* hashtable_iter_next(hashtable_t *hashtable, void *iter) {
+    return static_cast<hashtable*>(hashtable)->iter_next(iter);
+}
+
+void* hashtable_iter_key(void *iter) {
+    return hashtable::iterator(static_cast<hashtable_list*>(iter)).key().c_str();
+}
+
+size_t hashtable_iter_key_len(void *iter) {
+    return hashtable::iterator(static_cast<hashtable_list*>(iter)).key().length();
+}
+
+void* hashtable_iter_value(void *iter) {
+    return hashtable::iterator(static_cast<hashtable_list*>(iter)).value();
+}
+
+void hashtable_iter_set(void *iter, json_t *value) {
+    hashtable::iterator(static_cast<hashtable_list*>(iter)).set_value(value);
+}
+
+} // namespace jansson
