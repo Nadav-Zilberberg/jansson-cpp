@@ -1,75 +1,77 @@
-#include "jansson_private.hpp"
-#include "strbuffer.hpp"
-#include <assert.h>
-#include <errno.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
+#include <cassert>
+#include <cerrno>
+#include <cmath>
+#include <cstring>
+#include <sstream>
+#include <iomanip>
+#include <string>
+#include <locale>
+#include <algorithm>
 
-/* need jansson_private_config.h to get the correct snprintf */
-#ifdef HAVE_CONFIG_H
-#include <jansson_private_config.h>
-#endif
+namespace jansson {
+namespace strconv {
 
-/*
-  - This code assumes that the decimal separator is exactly one
-    character.
-
-  - If setlocale() is called by another thread between the call to
-    get_decimal_point() and the call to sprintf() or strtod(), the
-    result may be wrong. setlocale() is not thread-safe and should
-    not be used this way. Multi-threaded programs should use
-    uselocale() instead.
-*/
-static char get_decimal_point() {
-    char buf[3];
-    sprintf(buf, "%#.0f", 1.0); // "1." in the current locale
-    return buf[1];
-}
-
-static void to_locale(strbuffer_t *strbuffer) {
-    char point;
-    char *pos;
-
-    point = get_decimal_point();
-    if (point == '.') {
-        /* No conversion needed */
-        return;
+namespace {
+    char get_decimal_point() {
+        std::ostringstream oss;
+        oss.imbue(std::locale());
+        oss << std::fixed << std::setprecision(1) << 1.0;
+        std::string result = oss.str();
+        return result[1]; // Decimal point is at index 1
     }
 
-    pos = strchr(strbuffer->value, '.');
-    if (pos)
-        *pos = point;
+    void to_locale(std::string& str) {
+        char point = get_decimal_point();
+        if (point == '.') {
+            return;
+        }
+
+        size_t pos = str.find('.');
+        if (pos != std::string::npos) {
+            str[pos] = point;
+        }
+    }
+
+    void from_locale(std::string& str) {
+        char point = get_decimal_point();
+        if (point == '.') {
+            return;
+        }
+
+        size_t pos = str.find(point);
+        if (pos != std::string::npos) {
+            str[pos] = '.';
+        }
+    }
 }
 
-int jsonp_strtod(strbuffer_t *strbuffer, double *out) {
-    double value;
-    char *end;
-
-    to_locale(strbuffer);
+int jsonp_strtod(const std::string& str, double& out) {
+    std::string temp = str;
+    to_locale(temp);
 
     errno = 0;
-    value = strtod(strbuffer->value, &end);
-    assert(end == strbuffer->value + strbuffer->length);
-
-    if ((value == HUGE_VAL || value == -HUGE_VAL) && errno == ERANGE) {
-        /* Overflow */
+    char* end = nullptr;
+    double value = std::strtod(temp.c_str(), &end);
+    
+    if (end != temp.c_str() + temp.length()) {
         return -1;
     }
 
-    *out = value;
+    if ((value == HUGE_VAL || value == -HUGE_VAL) && errno == ERANGE) {
+        return -1;
+    }
+
+    out = value;
     return 0;
 }
 
 #if DTOA_ENABLED
-/* see dtoa.c */
-char *dtoa_r(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve,
-             char *buf, size_t blen);
+extern "C" {
+    char *dtoa_r(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve,
+                 char *buf, size_t blen);
+}
 
-int jsonp_dtostr(char *buffer, size_t size, double value, int precision) {
-    /* adapted from `format_float_short()` in
-     * https://github.com/python/cpython/blob/2cf18a44303b6d84faa8ecffaecc427b53ae121e/Python/pystrtod.c#L969
-     */
+int jsonp_dtostr(char* buffer, size_t size, double value, int precision) {
     char digits[25];
     char *digits_end;
     int mode = precision == 0 ? 0 : 2;
@@ -77,8 +79,7 @@ int jsonp_dtostr(char *buffer, size_t size, double value, int precision) {
     int digits_len, vdigits_start, vdigits_end;
     char *p;
 
-    if (dtoa_r(value, mode, precision, &decpt, &sign, &digits_end, digits, 25) == NULL) {
-        // digits is too short => should not happen
+    if (dtoa_r(value, mode, precision, &decpt, &sign, &digits_end, digits, 25) == nullptr) {
         return -1;
     }
 
@@ -92,22 +93,12 @@ int jsonp_dtostr(char *buffer, size_t size, double value, int precision) {
     vdigits_start = decpt <= 0 ? decpt - 1 : 0;
     vdigits_end = digits_len;
     if (!use_exp) {
-        /* decpt + 1 to add ".0" if value is an integer */
-        vdigits_end = vdigits_end > decpt ? vdigits_end : decpt + 1;
+        vdigits_end = std::max(vdigits_end, decpt + 1);
     } else {
-        vdigits_end = vdigits_end > decpt ? vdigits_end : decpt;
+        vdigits_end = std::max(vdigits_end, decpt);
     }
 
-    if (
-        /* sign, decimal point and trailing 0 byte */
-        (size_t)(3 +
-
-                 /* total digit count (including zero padding on both sides) */
-                 (vdigits_end - vdigits_start) +
-
-                 /* exponent "e+100", max 3 numerical digits */
-                 (use_exp ? 5 : 0)) > size) {
-        /* buffer is too short */
+    if (3 + (vdigits_end - vdigits_start) + (use_exp ? 5 : 0) > size) {
         return -1;
     }
 
@@ -116,41 +107,36 @@ int jsonp_dtostr(char *buffer, size_t size, double value, int precision) {
         *p++ = '-';
     }
 
-    /* note that exactly one of the three 'if' conditions is true,
-      so we include exactly one decimal point */
-    /* Zero padding on left of digit string */
     if (decpt <= 0) {
-        memset(p, '0', decpt - vdigits_start);
+        std::fill(p, p + (decpt - vdigits_start), '0');
         p += decpt - vdigits_start;
         *p++ = '.';
-        memset(p, '0', 0 - decpt);
+        std::fill(p, p + (0 - decpt), '0');
         p += 0 - decpt;
     } else {
-        memset(p, '0', 0 - vdigits_start);
+        std::fill(p, p + (0 - vdigits_start), '0');
         p += 0 - vdigits_start;
     }
 
-    /* Digits, with included decimal point */
     if (0 < decpt && decpt <= digits_len) {
-        strncpy(p, digits, decpt - 0);
-        p += decpt - 0;
+        std::copy(digits, digits + decpt, p);
+        p += decpt;
         *p++ = '.';
-        strncpy(p, digits + decpt, digits_len - decpt);
+        std::copy(digits + decpt, digits + digits_len, p);
         p += digits_len - decpt;
     } else {
-        strncpy(p, digits, digits_len);
+        std::copy(digits, digits + digits_len, p);
         p += digits_len;
     }
 
-    /* And zeros on the right */
     if (digits_len < decpt) {
-        memset(p, '0', decpt - digits_len);
+        std::fill(p, p + (decpt - digits_len), '0');
         p += decpt - digits_len;
         *p++ = '.';
-        memset(p, '0', vdigits_end - decpt);
+        std::fill(p, p + (vdigits_end - decpt), '0');
         p += vdigits_end - decpt;
     } else {
-        memset(p, '0', vdigits_end - digits_len);
+        std::fill(p, p + (vdigits_end - digits_len), '0');
         p += vdigits_end - digits_len;
     }
 
@@ -159,79 +145,56 @@ int jsonp_dtostr(char *buffer, size_t size, double value, int precision) {
 
     if (use_exp) {
         *p++ = 'e';
-        exp_len = sprintf(p, "%d", exp);
+        int exp_len = std::sprintf(p, "%d", exp);
         p += exp_len;
     }
     *p = '\0';
 
-    return (int)(p - buffer);
+    return static_cast<int>(p - buffer);
 }
-#else /* DTOA_ENABLED == 0 */
-static void from_locale(char *buffer) {
-    char point;
-    char *pos;
-
-    point = get_decimal_point();
-    if (point == '.') {
-        /* No conversion needed */
-        return;
-    }
-
-    pos = strchr(buffer, point);
-    if (pos)
-        *pos = '.';
-}
-
-int jsonp_dtostr(char *buffer, size_t size, double value, int precision) {
-    int ret;
-    char *start, *end;
-    size_t length;
-
+#else
+int jsonp_dtostr(char* buffer, size_t size, double value, int precision) {
     if (precision == 0)
         precision = 17;
 
-    ret = snprintf(buffer, size, "%.*g", precision, value);
-    if (ret < 0)
-        return -1;
+    std::ostringstream oss;
+    oss.imbue(std::locale());
+    oss << std::setprecision(precision) << value;
+    std::string result = oss.str();
+    
+    from_locale(result);
 
-    length = (size_t)ret;
-    if (length >= size)
-        return -1;
-
-    from_locale(buffer);
-
-    /* Make sure there's a dot or 'e' in the output. Otherwise
-       a real is converted to an integer when decoding */
-    if (strchr(buffer, '.') == NULL && strchr(buffer, 'e') == NULL) {
-        if (length + 3 >= size) {
-            /* No space to append ".0" */
-            return -1;
-        }
-        buffer[length] = '.';
-        buffer[length + 1] = '0';
-        buffer[length + 2] = '\0';
-        length += 2;
+    if (result.find('.') == std::string::npos && result.find('e') == std::string::npos) {
+        result += ".0";
     }
 
-    /* Remove leading '+' from positive exponent. Also remove leading
-       zeros from exponents (added by some printf() implementations) */
-    start = strchr(buffer, 'e');
-    if (start) {
+    size_t start = result.find('e');
+    if (start != std::string::npos) {
         start++;
-        end = start + 1;
-
-        if (*start == '-')
+        if (result[start] == '-') {
             start++;
-
-        while (*end == '0')
+        }
+        
+        size_t end = start + 1;
+        while (end < result.length() && result[end] == '0') {
             end++;
-
+        }
+        
         if (end != start) {
-            memmove(start, end, length - (size_t)(end - buffer));
-            length -= (size_t)(end - start);
+            result.erase(start, end - start);
         }
     }
 
-    return (int)length;
+    if (result.length() >= size) {
+        return -1;
+    }
+
+    std::copy(result.begin(), result.end(), buffer);
+    buffer[result.length()] = '\0';
+    
+    return static_cast<int>(result.length());
 }
 #endif
+
+} // namespace strconv
+} // namespace jansson
