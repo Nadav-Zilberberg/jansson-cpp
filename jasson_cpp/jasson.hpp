@@ -72,3 +72,7 @@ inline JsonValuePtr json_deep_copy(const JsonValuePtr& value) {
 } // namespace jasson
 
 #endif // JASSON_HPP
+
+// Include the string converter and compatibility wrapper
+#include "string_converter.hpp"
+#include "strconv_wrapper.hpp"
