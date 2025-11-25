@@ -1,3 +1,4 @@
+#include <stdint.h>
 /*
  * Copyright (c) 2009-2016 Petri Lehtinen <petri@digip.org>
  *
