@@ -1,0 +1,11 @@
+--- jansson-cpp/src/pack_unpack.cpp
++++ jansson-cpp/src/pack_unpack.cpp
+@@ -14,7 +14,7 @@
+ 
+ #include <jansson.h>
+ #include <jansson_private.h>
+-#include <stdio.h>
++#include <cstdio>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <stdarg.h>

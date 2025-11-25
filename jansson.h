@@ -20,24 +20,28 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include <jansson.h>
+#ifndef JANSSON_H
+#define JANSSON_H
+
+#include <stddef.h>
+#include <stdarg.h>
 #include "jansson-cpp/include/jansson.hpp"
 
-#define JANSSON_VERSION "2.14"
-#define JANSSON_MAJOR_VERSION 2
-#define JANSSON_MINOR_VERSION 14
-#define JANSSON_MICRO_VERSION 0
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-const char *jansson_version_str(void) { return JANSSON_VERSION; }
+/* Version */
+#define JANSSON_MAJOR_VERSION  2
+#define JANSSON_MINOR_VERSION  14
+#define JANSSON_MICRO_VERSION  0
 
-int jansson_version_cmp(int major, int minor, int micro) {
-    int diff;
+/* Version functions */
+const char *jansson_version_str(void);
+int jansson_version_cmp(int major, int minor, int micro);
 
-    if ((diff = JANSSON_MAJOR_VERSION - major))
-        return diff;
-
-    if ((diff = JANSSON_MINOR_VERSION - minor))
-        return diff;
-
-    return JANSSON_MICRO_VERSION - micro;
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* JANSSON_H */

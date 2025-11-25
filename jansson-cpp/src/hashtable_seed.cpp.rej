@@ -1,0 +1,10 @@
+--- jansson-cpp/src/hashtable_seed.cpp
++++ jansson-cpp/src/hashtable_seed.cpp
+@@ -1,5 +1,7 @@
+ /*
+ Copyright (c) 2009-2020 Petri Lehtinen <petri@digip.org>
++
++This file is part of Jansson.
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal

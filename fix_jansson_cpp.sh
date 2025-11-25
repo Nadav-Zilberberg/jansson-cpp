@@ -1,5 +1,11 @@
+#!/bin/bash
+
+# Fix hashtable_seed.cpp
+cat > jansson-cpp/src/hashtable_seed.cpp << 'EOF'
 /*
 Copyright (c) 2009-2020 Petri Lehtinen <petri@digip.org>
+
+This file is part of Jansson.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,24 +26,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include <jansson.h>
-#include "jansson-cpp/include/jansson.hpp"
+#include <stdlib.h>
+#include <time.h>
+#include <sys/time.h>
+#include <unistd.h>
 
-#define JANSSON_VERSION "2.14"
-#define JANSSON_MAJOR_VERSION 2
-#define JANSSON_MINOR_VERSION 14
-#define JANSSON_MICRO_VERSION 0
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
-const char *jansson_version_str(void) { return JANSSON_VERSION; }
-
-int jansson_version_cmp(int major, int minor, int micro) {
-    int diff;
-
-    if ((diff = JANSSON_MAJOR_VERSION - major))
-        return diff;
-
-    if ((diff = JANSSON_MINOR_VERSION - minor))
-        return diff;
-
-    return JANSSON_MICRO_VERSION - micro;
-}
+#include "jansson_private.h"
+#include "jansson-cpp/include/hashtable.hpp"

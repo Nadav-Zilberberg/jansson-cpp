@@ -1,0 +1,17 @@
+--- jansson-cpp/src/value.cpp
++++ jansson-cpp/src/value.cpp
+@@ -30,11 +30,11 @@
+ #define JSON_INLINE
+ #endif
+ 
+-static JSON_INLINE int isnan(double x) { return x != x; }
+-static JSON_INLINE int isinf(double x) { return !isnan(x) && isnan(x - x); }
++static JSON_INLINE int jansson_isnan(double x) { return x != x; }
++static JSON_INLINE int jansson_isinf(double x) { return !jansson_isnan(x) && jansson_isnan(x - x); }
+ 
+ /* json_t */
+-static void json_init(json_t *json, json_type type) {
++static void json_init(jansson::json_t *json, jansson::json_type type) {
+     json->type = type;
+     json->refcount = 1;
+ }

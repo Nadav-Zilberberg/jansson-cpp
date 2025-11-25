@@ -1,0 +1,12 @@
+--- jansson-cpp/src/dump.cpp
++++ jansson-cpp/src/dump.cpp
+@@ -290,8 +290,7 @@
+             size = jsonp_dtostr(buffer, MAX_REAL_STR_LENGTH, value,
+                                JSON_REAL_PRECISION(flags));
+ #else
+-            size = jsonp_dtostr(buffer, MAX_REAL_STR_LENGTH, value,
+-                               JSON_REAL_PRECISION(flags));
++            size = jsonp_dtostr(buffer, MAX_REAL_STR_LENGTH, value);
+ #endif
+             if (size < 0)
+                 return -1;
