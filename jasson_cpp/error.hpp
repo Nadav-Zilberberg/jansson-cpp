@@ -1,7 +1,7 @@
 #ifndef JANSSON_ERROR_H
 #define JANSSON_ERROR_H
 
-#include "src/jansson.h"
+#include "jansson.h"
 #include <stdexcept>
 #include <string>
 #include <cstddef>
