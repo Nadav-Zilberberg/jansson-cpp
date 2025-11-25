@@ -17,6 +17,6 @@ int main() {
     } catch (const jansson::JsonException& e) {
         std::cout << "Caught JsonException: " << e.what() << std::endl;
     }
-    
+
     return 0;
 }
