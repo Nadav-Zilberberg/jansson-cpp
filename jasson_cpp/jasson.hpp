@@ -76,3 +76,6 @@ inline JsonValuePtr json_deep_copy(const JsonValuePtr& value) {
 // Include the string converter and compatibility wrapper
 #include "string_converter.hpp"
 #include "strconv_wrapper.hpp"
+
+// Include the new JSON loader
+#include "json_loader.hpp"
