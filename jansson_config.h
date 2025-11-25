@@ -1,0 +1,8 @@
+#ifndef JANSSON_CONFIG_H
+#define JANSSON_CONFIG_H
+
+#define JSON_INTEGER_IS_LONG_LONG 1
+#define JSON_HAVE_ATOMIC_BUILTINS 1
+#define JSON_INLINE inline
+
+#endif

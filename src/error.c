@@ -1,20 +1,28 @@
 #include "jansson_private.h"
 #include <string.h>
 
-void jsonp_error_init(json_error_t *error, const char *source) {
+#ifdef __cplusplus
+#include "error.h"
+#include <stdexcept>
+#include <string>
+
+extern "C" {
+#endif
+
+void json_error_init(json_error_t *error, const char *source) {
     if (error) {
         error->text[0] = '\0';
         error->line = -1;
         error->column = -1;
         error->position = 0;
         if (source)
-            jsonp_error_set_source(error, source);
+            json_error_set_source(error, source);
         else
             error->source[0] = '\0';
     }
 }
 
-void jsonp_error_set_source(json_error_t *error, const char *source) {
+void json_error_set_source(json_error_t *error, const char *source) {
     size_t length;
 
     if (!error || !source)
@@ -30,16 +38,16 @@ void jsonp_error_set_source(json_error_t *error, const char *source) {
     }
 }
 
-void jsonp_error_set(json_error_t *error, int line, int column, size_t position,
+void json_error_set(json_error_t *error, int line, int column, size_t position,
                      enum json_error_code code, const char *msg, ...) {
     va_list ap;
 
     va_start(ap, msg);
-    jsonp_error_vset(error, line, column, position, code, msg, ap);
+    json_error_vset(error, line, column, position, code, msg, ap);
     va_end(ap);
 }
 
-void jsonp_error_vset(json_error_t *error, int line, int column, size_t position,
+void json_error_vset(json_error_t *error, int line, int column, size_t position,
                       enum json_error_code code, const char *msg, va_list ap) {
     if (!error)
         return;
@@ -56,4 +64,17 @@ void jsonp_error_vset(json_error_t *error, int line, int column, size_t position
     vsnprintf(error->text, JSON_ERROR_TEXT_LENGTH - 1, msg, ap);
     error->text[JSON_ERROR_TEXT_LENGTH - 2] = '\0';
     error->text[JSON_ERROR_TEXT_LENGTH - 1] = code;
+
+#ifdef __cplusplus
+    /* Convert to C++ exception */
+    jansson::JsonErrorCode cpp_code = static_cast<jansson::JsonErrorCode>(code);
+    std::string message(error->text);
+    std::string source(error->source);
+    jansson::JsonError cpp_error(cpp_code, message, source, line, column, position);
+    jansson::throwJsonException(cpp_error);
+#endif
 }
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
