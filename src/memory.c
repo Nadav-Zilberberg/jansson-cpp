@@ -8,59 +8,63 @@
 
 #include <stdlib.h>
 #include <string.h>
+
 #include "jansson.h"
 #include "jansson_private.h"
 
-typedef struct {
-    json_malloc_t malloc_fn;
-    json_realloc_t realloc_fn;
-    json_free_t free_fn;
-} memory_resource;
+/* C89 allows these to be macros */
+#undef malloc
+#undef realloc
+#undef free
 
-static memory_resource* current_memory_resource = NULL;
-
-static memory_resource default_memory_resource = {
-    malloc,
-    realloc,
-    free
-};
+/* memory function pointers */
+static json_malloc_t do_malloc = malloc;
+static json_realloc_t do_realloc = realloc;
+static json_free_t do_free = free;
 
 void *jsonp_malloc(size_t size) {
-    if (!current_memory_resource)
-        current_memory_resource = &default_memory_resource;
-    return current_memory_resource->malloc_fn(size);
+    if (!size)
+        return NULL;
+
+    return (*do_malloc)(size);
 }
 
 void jsonp_free(void *ptr) {
-    if (!current_memory_resource)
-        current_memory_resource = &default_memory_resource;
-    current_memory_resource->free_fn(ptr);
+    if (!ptr)
+        return;
+
+    (*do_free)(ptr);
 }
 
 void *jsonp_realloc(void *ptr, size_t originalSize, size_t newSize) {
-    if (!current_memory_resource)
-        current_memory_resource = &default_memory_resource;
-    if (current_memory_resource->realloc_fn)
-        return current_memory_resource->realloc_fn(ptr, newSize);
-    
-    // Fallback to malloc/free emulation
+    void *newMemory;
+
+    if (do_realloc)
+        return (*do_realloc)(ptr, newSize);
+
+    // realloc emulation using malloc and free
     if (newSize == 0) {
-        current_memory_resource->free_fn(ptr);
+        if (ptr != NULL)
+            (*do_free)(ptr);
+
         return NULL;
+    } else {
+        newMemory = (*do_malloc)(newSize);
+
+        if ((newMemory != NULL) && (ptr != NULL)) {
+            memcpy(newMemory, ptr, (originalSize < newSize) ? originalSize : newSize);
+
+            (*do_free)(ptr);
+        }
+
+        return newMemory;
     }
-    
-    void* new_ptr = current_memory_resource->malloc_fn(newSize);
-    if (new_ptr && ptr) {
-        memcpy(new_ptr, ptr, originalSize < newSize ? originalSize : newSize);
-        current_memory_resource->free_fn(ptr);
-    }
-    return new_ptr;
 }
 
 char *jsonp_strndup(const char *str, size_t len) {
     char *new_str;
 
-    new_str = (char*)jsonp_malloc(len + 1);
+    new_str = jsonp_malloc(len + 1);
     if (!new_str)
         return NULL;
 
@@ -70,44 +74,30 @@ char *jsonp_strndup(const char *str, size_t len) {
 }
 
 void json_set_alloc_funcs(json_malloc_t malloc_fn, json_free_t free_fn) {
-    static memory_resource custom_mr;
-    custom_mr.malloc_fn = malloc_fn;
-    custom_mr.realloc_fn = NULL;
-    custom_mr.free_fn = free_fn;
-    current_memory_resource = &custom_mr;
+    do_malloc = malloc_fn;
+    do_realloc = NULL;
+    do_free = free_fn;
 }
 
 void json_set_alloc_funcs2(json_malloc_t malloc_fn, json_realloc_t realloc_fn,
                            json_free_t free_fn) {
-    static memory_resource custom_mr;
-    custom_mr.malloc_fn = malloc_fn;
-    custom_mr.realloc_fn = realloc_fn;
-    custom_mr.free_fn = free_fn;
-    current_memory_resource = &custom_mr;
+    do_malloc = malloc_fn;
+    do_realloc = realloc_fn;
+    do_free = free_fn;
 }
 
 void json_get_alloc_funcs(json_malloc_t *malloc_fn, json_free_t *free_fn) {
-    if (!current_memory_resource)
-        current_memory_resource = &default_memory_resource;
-    if (malloc_fn) {
-        *malloc_fn = current_memory_resource->malloc_fn;
-    }
-    if (free_fn) {
-        *free_fn = current_memory_resource->free_fn;
-    }
+    if (malloc_fn)
+        *malloc_fn = do_malloc;
+    if (free_fn)
+        *free_fn = do_free;
 }
-
 void json_get_alloc_funcs2(json_malloc_t *malloc_fn, json_realloc_t *realloc_fn,
                            json_free_t *free_fn) {
-    if (!current_memory_resource)
-        current_memory_resource = &default_memory_resource;
-    if (malloc_fn) {
-        *malloc_fn = current_memory_resource->malloc_fn;
-    }
-    if (realloc_fn) {
-        *realloc_fn = current_memory_resource->realloc_fn;
-    }
-    if (free_fn) {
-        *free_fn = current_memory_resource->free_fn;
-    }
+    if (malloc_fn)
+        *malloc_fn = do_malloc;
+    if (realloc_fn)
+        *realloc_fn = do_realloc;
+    if (free_fn)
+        *free_fn = do_free;
 }

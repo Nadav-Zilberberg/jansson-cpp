@@ -1,4 +1,3 @@
-#include <stdint.h>
 /* Generate sizeof(uint32_t) bytes of as random data as possible to seed
    the hash function.
 */
