@@ -1,0 +1,10 @@
+#ifndef JANSSON_CONFIG_H
+#define JANSSON_CONFIG_H
+
+#define HAVE_STDINT_H 1
+#define HAVE_UNISTD_H 1
+#define HAVE_FCNTL_H 1
+#define HAVE_SYS_STAT_H 1
+#define HAVE_SYS_TYPES_H 1
+
+#endif /* JANSSON_CONFIG_H */
