@@ -1,47 +1,57 @@
 #ifndef JASSON_JSON_FACTORY_HPP
 #define JASSON_JSON_FACTORY_HPP
 
-#include "json_types.hpp"
-#include <string>
+#include "json_value.hpp"
+#include <memory>
 
 namespace jasson {
 
-// Factory functions for creating JSON values
-inline JsonObjectPtr json_object() {
-    return std::make_shared<JsonObject>();
-}
+class JsonFactory {
+public:
+    static std::unique_ptr<JsonObject> create_object() {
+        return std::make_unique<JsonObject>();
+    }
 
-inline JsonArrayPtr json_array() {
-    return std::make_shared<JsonArray>();
-}
+    static std::unique_ptr<JsonArray> create_array() {
+        return std::make_unique<JsonArray>();
+    }
 
-inline JsonStringPtr json_string(const std::string& value) {
-    return std::make_shared<JsonString>(value);
-}
+    static std::unique_ptr<JsonString> create_string(const std::string& value) {
+        return std::make_unique<JsonString>(value);
+    }
 
-inline JsonNumberPtr json_integer(json_int_t value) {
-    return std::make_shared<JsonNumber>(value);
-}
+    static std::unique_ptr<JsonString> create_string(std::string&& value) {
+        return std::make_unique<JsonString>(std::move(value));
+    }
 
-inline JsonNumberPtr json_real(double value) {
-    return std::make_shared<JsonNumber>(value);
-}
+    static std::unique_ptr<JsonString> create_string(const char* value) {
+        return std::make_unique<JsonString>(value);
+    }
 
-inline JsonBooleanPtr json_true() {
-    return std::make_shared<JsonBoolean>(true);
-}
+    static std::unique_ptr<JsonInteger> create_integer(json_int_t value) {
+        return std::make_unique<JsonInteger>(value);
+    }
 
-inline JsonBooleanPtr json_false() {
-    return std::make_shared<JsonBoolean>(false);
-}
+    static std::unique_ptr<JsonReal> create_real(double value) {
+        return std::make_unique<JsonReal>(value);
+    }
 
-inline JsonBooleanPtr json_boolean(bool value) {
-    return std::make_shared<JsonBoolean>(value);
-}
+    static std::unique_ptr<JsonBoolean> create_true() {
+        return std::make_unique<JsonBoolean>(true);
+    }
 
-inline JsonNullPtr json_null() {
-    return std::make_shared<JsonNull>();
-}
+    static std::unique_ptr<JsonBoolean> create_false() {
+        return std::make_unique<JsonBoolean>(false);
+    }
+
+    static std::unique_ptr<JsonBoolean> create_boolean(bool value) {
+        return std::make_unique<JsonBoolean>(value);
+    }
+
+    static std::unique_ptr<JsonNull> create_null() {
+        return std::make_unique<JsonNull>();
+    }
+};
 
 } // namespace jasson
 
