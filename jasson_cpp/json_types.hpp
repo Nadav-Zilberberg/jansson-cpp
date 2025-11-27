@@ -1,40 +1,26 @@
 #ifndef JASSON_JSON_TYPES_HPP
 #define JASSON_JSON_TYPES_HPP
 
-#include "json_value.hpp"
-#include "json_config.hpp"
-#include <memory>
+#include <cstdint>
 
 namespace jasson {
 
-// Forward declarations
-class JsonObject;
-class JsonArray;
-class JsonString;
-class JsonNumber;
-class JsonBoolean;
-class JsonNull;
+// JSON type enumeration
+enum class JsonType {
+    NULL_VALUE,
+    BOOLEAN,
+    INTEGER,
+    REAL,
+    STRING,
+    ARRAY,
+    OBJECT
+};
 
-using JsonValuePtr = std::shared_ptr<JsonValue>;
-using JsonObjectPtr = std::shared_ptr<JsonObject>;
-using JsonArrayPtr = std::shared_ptr<JsonArray>;
-using JsonStringPtr = std::shared_ptr<JsonString>;
-using JsonNumberPtr = std::shared_ptr<JsonNumber>;
-using JsonIntegerPtr = std::shared_ptr<JsonInteger>;
-using JsonRealPtr = std::shared_ptr<JsonReal>;
-using JsonBooleanPtr = std::shared_ptr<JsonBoolean>;
-using JsonNullPtr = std::shared_ptr<JsonNull>;
+// JSON integer type (64-bit signed integer)
+using json_int_t = int64_t;
 
-// Casting functions
-template<typename T>
-std::shared_ptr<T> json_cast(const JsonValuePtr& value) {
-    return std::dynamic_pointer_cast<T>(value);
-}
-
-template<typename T>
-bool json_isa(const JsonValuePtr& value) {
-    return json_cast<T>(value) != nullptr;
-}
+// JSON real type (double precision floating point)
+using json_real_t = double;
 
 } // namespace jasson
 
