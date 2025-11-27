@@ -15,7 +15,7 @@ void test_basic_dump() {
 
     JsonDumper dumper;
     std::string result = dumper.dump(*json);
-    
+
     std::cout << "Basic dump result: " << result << std::endl;
     assert(result == R"({"name":"test","value":42,"pi":3.14159,"active":true,"data":null})");
 }
@@ -29,7 +29,7 @@ void test_formatted_dump() {
 
     JsonDumper dumper(JsonDumpFormat::INDENTED, 2);
     std::string result = dumper.dump(*json);
-    
+
     std::cout << "Formatted dump result:\n" << result << std::endl;
     assert(result.find("\n") != std::string::npos);
     assert(result.find("  ") != std::string::npos);
@@ -45,7 +45,7 @@ void test_array_dump() {
 
     JsonDumper dumper;
     std::string result = dumper.dump(*json);
-    
+
     std::cout << "Array dump result: " << result << std::endl;
     assert(result == R"(["first",2,3.14,false,null])");
 }
@@ -59,7 +59,7 @@ void test_escape_sequences() {
 
     JsonDumper dumper;
     std::string result = dumper.dump(*json);
-    
+
     std::cout << "Escape sequences result: " << result << std::endl;
     assert(result.find("\\\"") != std::string::npos);
     assert(result.find("\\\\") != std::string::npos);
@@ -75,7 +75,7 @@ void test_sorted_keys() {
 
     JsonDumper dumper(JsonDumpFormat::SORT_KEYS);
     std::string result = dumper.dump(*json);
-    
+
     std::cout << "Sorted keys result: " << result << std::endl;
     assert(result.find("alpha") < result.find("beta"));
     assert(result.find("beta") < result.find("zebra"));
@@ -87,19 +87,19 @@ void test_file_dump() {
 
     JsonDumper dumper(JsonDumpFormat::INDENTED);
     std::filesystem::path test_file("test_output.json");
-    
+
     dumper.dump_to_file(*json, test_file);
-    
+
     // Read back and verify
     std::ifstream file(test_file);
     std::string content((std::istreambuf_iterator<char>(file)),
                        std::istreambuf_iterator<char>());
     file.close();
-    
+
     std::cout << "File dump result:\n" << content << std::endl;
     assert(content.find("test") != std::string::npos);
     assert(content.find("file dump") != std::string::npos);
-    
+
     // Clean up
     std::filesystem::remove(test_file);
 }
@@ -112,7 +112,7 @@ int main() {
         test_escape_sequences();
         test_sorted_keys();
         test_file_dump();
-        
+
         std::cout << "All tests passed!" << std::endl;
         return 0;
     } catch (const std::exception& e) {
