@@ -4,6 +4,8 @@
 #include "json_value.hpp"
 #include "json_types.hpp"
 #include "json_factory.hpp"
+#include "json_extensions.hpp"
+#include "json_convenience.hpp"
 
 namespace jasson {
 
@@ -39,11 +41,11 @@ inline bool json_is_number(const JsonValuePtr& value) {
 }
 
 inline bool json_is_true(const JsonValuePtr& value) {
-    return value && value->is_true();
+    return value && json_is_true(*value);
 }
 
 inline bool json_is_false(const JsonValuePtr& value) {
-    return value && value->is_false();
+    return value && json_is_false(*value);
 }
 
 inline bool json_is_boolean(const JsonValuePtr& value) {
@@ -54,28 +56,21 @@ inline bool json_is_null(const JsonValuePtr& value) {
     return value && value->is_null();
 }
 
-// Equality comparison
+// Equality functions
 inline bool json_equal(const JsonValuePtr& value1, const JsonValuePtr& value2) {
     if (!value1 || !value2) return false;
-    return value1->equals(*value2);
+    return json_equals(*value1, *value2);
 }
 
-// Copying functions
+// Copy functions
 inline JsonValuePtr json_copy(const JsonValuePtr& value) {
-    return value ? value->copy() : nullptr;
+    return value ? json_copy(*value) : nullptr;
 }
 
 inline JsonValuePtr json_deep_copy(const JsonValuePtr& value) {
-    return value ? value->deep_copy() : nullptr;
+    return value ? json_deep_copy(*value) : nullptr;
 }
 
 } // namespace jasson
 
 #endif // JASSON_HPP
-
-// Include the string converter and compatibility wrapper
-#include "string_converter.hpp"
-#include "strconv_wrapper.hpp"
-
-// Include the new JSON loader
-#include "json_loader.hpp"

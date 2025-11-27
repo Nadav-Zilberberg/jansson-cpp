@@ -1,0 +1,227 @@
+#ifndef JASSON_JSON_TYPES_HPP
+#define JASSON_JSON_TYPES_HPP
+
+#include "json_value.hpp"
+#include "json_config.hpp"
+#include <cmath>
+
+namespace jasson {
+
+// Forward declarations
+class JsonObject;
+class JsonArray;
+class JsonString;
+class JsonNumber;
+class JsonBoolean;
+class JsonNull;
+
+using JsonObjectPtr = std::shared_ptr<JsonObject>;
+using JsonArrayPtr = std::shared_ptr<JsonArray>;
+using JsonStringPtr = std::shared_ptr<JsonString>;
+using JsonNumberPtr = std::shared_ptr<JsonNumber>;
+using JsonBooleanPtr = std::shared_ptr<JsonBoolean>;
+using JsonNullPtr = std::shared_ptr<JsonNull>;
+using JsonValuePtr = std::shared_ptr<JsonValue>;
+
+class JsonObject : public JsonValue {
+public:
+    JsonObject() : JsonValue(JsonType::OBJECT) {}
+    
+    size_t size() const { return values_.size(); }
+    
+    JsonValuePtr get(const std::string& key) const {
+        auto it = values_.find(key);
+        return it != values_.end() ? it->second : nullptr;
+    }
+    
+    void set(const std::string& key, JsonValuePtr value) {
+        if (!value) throw std::invalid_argument("Cannot set null value");
+        values_[key] = value;
+    }
+    
+    void remove(const std::string& key) {
+        values_.erase(key);
+    }
+    
+    void clear() {
+        values_.clear();
+    }
+    
+    const std::unordered_map<std::string, JsonValuePtr>& values() const {
+        return values_;
+    }
+
+    std::shared_ptr<JsonValue> copy() const override;
+    std::shared_ptr<JsonValue> deep_copy() const override;
+    bool equals(const JsonValue& other) const override;
+
+private:
+    std::unordered_map<std::string, JsonValuePtr> values_;
+};
+
+class JsonArray : public JsonValue {
+public:
+    JsonArray() : JsonValue(JsonType::ARRAY) {}
+    
+    size_t size() const { return values_.size(); }
+    
+    JsonValuePtr get(size_t index) const {
+        return index < values_.size() ? values_[index] : nullptr;
+    }
+    
+    void set(size_t index, JsonValuePtr value) {
+        if (!value) throw std::invalid_argument("Cannot set null value");
+        if (index >= values_.size()) {
+            throw std::out_of_range("Array index out of range");
+        }
+        values_[index] = value;
+    }
+    
+    void append(JsonValuePtr value) {
+        if (!value) throw std::invalid_argument("Cannot append null value");
+        values_.push_back(value);
+    }
+    
+    void insert(size_t index, JsonValuePtr value) {
+        if (!value) throw std::invalid_argument("Cannot insert null value");
+        if (index > values_.size()) {
+            throw std::out_of_range("Array index out of range");
+        }
+        values_.insert(values_.begin() + index, value);
+    }
+    
+    void remove(size_t index) {
+        if (index >= values_.size()) {
+            throw std::out_of_range("Array index out of range");
+        }
+        values_.erase(values_.begin() + index);
+    }
+    
+    void clear() {
+        values_.clear();
+    }
+    
+    void extend(const JsonArray& other) {
+        values_.insert(values_.end(), other.values_.begin(), other.values_.end());
+    }
+    
+    const std::vector<JsonValuePtr>& values() const {
+        return values_;
+    }
+
+    std::shared_ptr<JsonValue> copy() const override;
+    std::shared_ptr<JsonValue> deep_copy() const override;
+    bool equals(const JsonValue& other) const override;
+
+private:
+    std::vector<JsonValuePtr> values_;
+};
+
+class JsonString : public JsonValue {
+public:
+    explicit JsonString(const std::string& value) 
+        : JsonValue(JsonType::STRING), value_(value) {}
+    
+    const std::string& value() const { return value_; }
+    size_t length() const { return value_.length(); }
+    
+    void set_value(const std::string& value) { value_ = value; }
+
+    std::shared_ptr<JsonValue> copy() const override;
+    std::shared_ptr<JsonValue> deep_copy() const override;
+    bool equals(const JsonValue& other) const override;
+
+private:
+    std::string value_;
+};
+
+class JsonNumber : public JsonValue {
+public:
+    explicit JsonNumber(json_int_t value) : JsonValue(JsonType::INTEGER), int_value_(value) {}
+    explicit JsonNumber(double value) : JsonValue(JsonType::REAL), real_value_(value) {}
+    
+    bool is_integer() const { return type() == JsonType::INTEGER; }
+    bool is_real() const { return type() == JsonType::REAL; }
+    
+    json_int_t int_value() const { 
+        if (!is_integer()) throw std::runtime_error("Not an integer");
+        return int_value_;
+    }
+    
+    double real_value() const { 
+        if (!is_real()) throw std::runtime_error("Not a real number");
+        return real_value_;
+    }
+    
+    double number_value() const {
+        return is_integer() ? static_cast<double>(int_value_) : real_value_;
+    }
+    
+    void set_value(json_int_t value) {
+        int_value_ = value;
+        // Keep current type (INTEGER)
+    }
+    
+    void set_value(double value) {
+        if (std::isnan(value) || std::isinf(value)) {
+            throw std::invalid_argument("Invalid double value");
+        }
+        real_value_ = value;
+        // Keep current type (REAL)
+    }
+
+    std::shared_ptr<JsonValue> copy() const override;
+    std::shared_ptr<JsonValue> deep_copy() const override;
+    bool equals(const JsonValue& other) const override;
+
+private:
+    union {
+        json_int_t int_value_;
+        double real_value_;
+    };
+};
+
+class JsonBoolean : public JsonValue {
+public:
+    explicit JsonBoolean(bool value) 
+        : JsonValue(value ? JsonType::TRUE : JsonType::FALSE), value_(value) {}
+    
+    bool value() const { return value_; }
+    
+    void set_value(bool value) { 
+        value_ = value;
+        // Update type to match boolean value
+        mutable_type() = value ? JsonType::TRUE : JsonType::FALSE;
+    }
+
+    std::shared_ptr<JsonValue> copy() const override;
+    std::shared_ptr<JsonValue> deep_copy() const override;
+    bool equals(const JsonValue& other) const override;
+
+private:
+    bool value_;
+};
+
+class JsonNull : public JsonValue {
+public:
+    JsonNull() : JsonValue(JsonType::NULL_VALUE) {}
+
+    std::shared_ptr<JsonValue> copy() const override;
+    std::shared_ptr<JsonValue> deep_copy() const override;
+    bool equals(const JsonValue& other) const override;
+};
+
+// Type-safe casting functions
+template<typename T>
+std::shared_ptr<T> json_cast(const JsonValuePtr& value) {
+    return std::dynamic_pointer_cast<T>(value);
+}
+
+template<typename T>
+bool json_isa(const JsonValuePtr& value) {
+    return std::dynamic_pointer_cast<T>(value) != nullptr;
+}
+
+} // namespace jasson
+
+#endif // JASSON_JSON_TYPES_HPP
