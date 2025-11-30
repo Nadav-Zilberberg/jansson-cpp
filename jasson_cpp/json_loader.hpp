@@ -2,6 +2,7 @@
 #define JASSON_JSON_LOADER_HPP
 
 #include "json_value.hpp"
+#include "json_types.hpp"
 #include <istream>
 #include <fstream>
 #include <filesystem>
