@@ -1,141 +1,256 @@
-#ifndef JASSON_JSON_LOADER_HPP
-#define JASSON_JSON_LOADER_HPP
+#ifndef JSON_LOADER_HPP
+#define JSON_LOADER_HPP
 
 #include "json_value.hpp"
-#include "json_types.hpp"
-#include <istream>
-#include <fstream>
-#include <filesystem>
-#include <memory>
 #include <string>
-#include <vector>
+#include <sstream>
+#include <cctype>
 #include <stdexcept>
 
 namespace jasson {
 
-// Exception class for JSON loading errors
-class JsonLoadException : public std::runtime_error {
-public:
-    JsonLoadException(const std::string& message, int line = -1, int column = -1, size_t position = 0)
-        : std::runtime_error(message), line_(line), column_(column), position_(position) {}
-    
-    int line() const { return line_; }
-    int column() const { return column_; }
-    size_t position() const { return position_; }
-
-private:
-    int line_;
-    int column_;
-    size_t position_;
-};
-
-// Configuration flags for JSON loading
-enum class JsonLoadFlags {
-    NONE = 0,
-    REJECT_DUPLICATES = 1 << 0,
-    DISABLE_EOF_CHECK = 1 << 1,
-    DECODE_ANY = 1 << 2,
-    DECODE_INT_AS_REAL = 1 << 3,
-    ALLOW_NUL = 1 << 4
-};
-
-inline JsonLoadFlags operator|(JsonLoadFlags a, JsonLoadFlags b) {
-    return static_cast<JsonLoadFlags>(static_cast<int>(a) | static_cast<int>(b));
-}
-
-inline JsonLoadFlags operator&(JsonLoadFlags a, JsonLoadFlags b) {
-    return static_cast<JsonLoadFlags>(static_cast<int>(a) & static_cast<int>(b));
-}
-
-inline bool has_flag(JsonLoadFlags flags, JsonLoadFlags flag) {
-    return (static_cast<int>(flags) & static_cast<int>(flag)) != 0;
-}
-
-// JsonLoader class for loading JSON from various sources
 class JsonLoader {
 public:
-    explicit JsonLoader(JsonLoadFlags flags = JsonLoadFlags::NONE);
+    static JsonValuePtr load(const std::string& json_str) {
+        JsonLoader loader;
+        loader.input_ = json_str;
+        loader.pos_ = 0;
+        return loader.parse_value();
+    }
     
-    // Load from string
-    JsonValuePtr load_from_string(const std::string& input);
-    JsonValuePtr load_from_string(const char* input, size_t length);
-    
-    // Load from stream
-    JsonValuePtr load_from_stream(std::istream& input);
-    
-    // Load from file
-    JsonValuePtr load_from_file(const std::filesystem::path& path);
-    JsonValuePtr load_from_file(const std::string& path);
-    
-    // Load from file descriptor (Unix-style)
-    JsonValuePtr load_from_fd(int fd);
-    
-    // Iterator-based loading (modern replacement for callback-based loading)
-    template<typename InputIterator>
-    JsonValuePtr load_from_iterators(InputIterator begin, InputIterator end);
-    
-    // Get/set flags
-    JsonLoadFlags flags() const { return flags_; }
-    void set_flags(JsonLoadFlags flags) { flags_ = flags; }
-    
-    // Configuration
-    void set_max_depth(size_t max_depth) { max_depth_ = max_depth; }
-    size_t max_depth() const { return max_depth_; }
-
 private:
-    // Internal parsing structures
-    struct ParseContext {
-        const char* current;
-        const char* end;
-        size_t line;
-        size_t column;
-        size_t position;
-        size_t depth;
+    std::string input_;
+    size_t pos_;
+    
+    void skip_whitespace() {
+        while (pos_ < input_.size() && std::isspace(input_[pos_])) {
+            ++pos_;
+        }
+    }
+    
+    char peek() const {
+        if (pos_ >= input_.size()) {
+            throw std::runtime_error("Unexpected end of input");
+        }
+        return input_[pos_];
+    }
+    
+    char consume() {
+        char c = peek();
+        ++pos_;
+        return c;
+    }
+    
+    bool match(char expected) {
+        skip_whitespace();
+        if (peek() == expected) {
+            consume();
+            return true;
+        }
+        return false;
+    }
+    
+    JsonValuePtr parse_value() {
+        skip_whitespace();
+        char c = peek();
         
-        ParseContext(const char* begin, const char* end)
-            : current(begin), end(end), line(1), column(1), position(0), depth(0) {}
-    };
+        switch (c) {
+            case 'n':
+                return parse_null();
+            case 't':
+            case 'f':
+                return parse_boolean();
+            case '"':
+                return parse_string();
+            case '[':
+                return parse_array();
+            case '{':
+                return parse_object();
+            case '-':
+            case '0': case '1': case '2': case '3': case '4':
+            case '5': case '6': case '7': case '8': case '9':
+                return parse_number();
+            default:
+                throw std::runtime_error("Unexpected character: " + std::string(1, c));
+        }
+    }
     
-    JsonLoadFlags flags_;
-    size_t max_depth_;
+    JsonValuePtr parse_null() {
+        if (input_.substr(pos_, 4) == "null") {
+            pos_ += 4;
+            return jasson_null();
+        }
+        throw std::runtime_error("Invalid null value");
+    }
     
-    // Core parsing functions
-    JsonValuePtr parse_value(ParseContext& ctx);
-    JsonValuePtr parse_object(ParseContext& ctx);
-    JsonValuePtr parse_array(ParseContext& ctx);
-    JsonValuePtr parse_string(ParseContext& ctx);
-    JsonValuePtr parse_number(ParseContext& ctx);
-    JsonValuePtr parse_literal(ParseContext& ctx, const std::string& literal, JsonType type);
+    JsonValuePtr parse_boolean() {
+        if (input_.substr(pos_, 4) == "true") {
+            pos_ += 4;
+            return jasson_true();
+        } else if (input_.substr(pos_, 5) == "false") {
+            pos_ += 5;
+            return jasson_false();
+        }
+        throw std::runtime_error("Invalid boolean value");
+    }
     
-    // Helper functions
-    void skip_whitespace(ParseContext& ctx);
-    char peek_char(ParseContext& ctx);
-    char consume_char(ParseContext& ctx);
-    void advance_position(ParseContext& ctx, char ch);
-    void expect_char(ParseContext& ctx, char expected);
-    std::string parse_string_content(ParseContext& ctx);
-    std::string parse_escape_sequence(ParseContext& ctx);
-    bool is_digit(char ch);
-    bool is_hex_digit(char ch);
-    int hex_to_int(char ch);
+    JsonValuePtr parse_string() {
+        if (consume() != '"') {
+            throw std::runtime_error("Expected string");
+        }
+        
+        std::string result;
+        while (peek() != '"') {
+            char c = consume();
+            if (c == '\\') {
+                c = consume();
+                switch (c) {
+                    case '"': result += '"'; break;
+                    case '\\': result += '\\'; break;
+                    case '/': result += '/'; break;
+                    case 'b': result += '\b'; break;
+                    case 'f': result += '\f'; break;
+                    case 'n': result += '\n'; break;
+                    case 'r': result += '\r'; break;
+                    case 't': result += '\t'; break;
+                    default:
+                        throw std::runtime_error("Invalid escape sequence");
+                }
+            } else {
+                result += c;
+            }
+        }
+        
+        consume(); // Closing quote
+        return jasson_string(std::move(result));
+    }
     
-    // Error handling
-    [[noreturn]] void throw_parse_error(ParseContext& ctx, const std::string& message);
-    [[noreturn]] void throw_unexpected_char(ParseContext& ctx, char ch);
-    [[noreturn]] void throw_unexpected_eof(ParseContext& ctx);
+    JsonValuePtr parse_number() {
+        size_t start = pos_;
+        
+        if (peek() == '-') {
+            consume();
+        }
+        
+        if (peek() == '0') {
+            consume();
+        } else {
+            while (std::isdigit(peek())) {
+                consume();
+            }
+        }
+        
+        bool is_real = false;
+        if (peek() == '.') {
+            is_real = true;
+            consume();
+            while (std::isdigit(peek())) {
+                consume();
+            }
+        }
+        
+        if (peek() == 'e' || peek() == 'E') {
+            is_real = true;
+            consume();
+            if (peek() == '+' || peek() == '-') {
+                consume();
+            }
+            while (std::isdigit(peek())) {
+                consume();
+            }
+        }
+        
+        std::string num_str = input_.substr(start, pos_ - start);
+        
+        if (is_real) {
+            return jasson_real(std::stod(num_str));
+        } else {
+            return jasson_integer(std::stoll(num_str));
+        }
+    }
     
-    // Validation
-    void validate_depth(ParseContext& ctx);
-    void validate_string(const std::string& str);
+    JsonValuePtr parse_array() {
+        if (consume() != '[') {
+            throw std::runtime_error("Expected array");
+        }
+        
+        auto array = jasson_array();
+        
+        skip_whitespace();
+        if (peek() == ']') {
+            consume();
+            return array;
+        }
+        
+        while (true) {
+            array->as_array()->append(parse_value());
+            
+            skip_whitespace();
+            if (peek() == ']') {
+                consume();
+                break;
+            } else if (peek() == ',') {
+                consume();
+            } else {
+                throw std::runtime_error("Expected ',' or ']' in array");
+            }
+        }
+        
+        return array;
+    }
+    
+    JsonValuePtr parse_object() {
+        if (consume() != '{') {
+            throw std::runtime_error("Expected object");
+        }
+        
+        auto object = jasson_object();
+        
+        skip_whitespace();
+        if (peek() == '}') {
+            consume();
+            return object;
+        }
+        
+        while (true) {
+            skip_whitespace();
+            
+            // Parse key
+            if (peek() != '"') {
+                throw std::runtime_error("Expected string key");
+            }
+            auto key_value = parse_string();
+            std::string key = key_value->as_string()->value();
+            
+            skip_whitespace();
+            if (consume() != ':') {
+                throw std::runtime_error("Expected ':' after object key");
+            }
+            
+            // Parse value
+            auto value = parse_value();
+            object->as_object()->add(key, value);
+            
+            skip_whitespace();
+            if (peek() == '}') {
+                consume();
+                break;
+            } else if (peek() == ',') {
+                consume();
+            } else {
+                throw std::runtime_error("Expected ',' or '}' in object");
+            }
+        }
+        
+        return object;
+    }
 };
 
-// Convenience functions (similar to C API but with exceptions)
-JsonValuePtr json_loads(const std::string& input, JsonLoadFlags flags = JsonLoadFlags::NONE);
-JsonValuePtr json_loads(const char* input, size_t length, JsonLoadFlags flags = JsonLoadFlags::NONE);
-JsonValuePtr json_load_file(const std::filesystem::path& path, JsonLoadFlags flags = JsonLoadFlags::NONE);
-JsonValuePtr json_load_file(const std::string& path, JsonLoadFlags flags = JsonLoadFlags::NONE);
-JsonValuePtr json_load_stream(std::istream& input, JsonLoadFlags flags = JsonLoadFlags::NONE);
+// Convenience function
+inline JsonValuePtr json_load(const std::string& json_str) {
+    return JsonLoader::load(json_str);
+}
 
 } // namespace jasson
 
-#endif // JASSON_JSON_LOADER_HPP
+#endif // JSON_LOADER_HPP

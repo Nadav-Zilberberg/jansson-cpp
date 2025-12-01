@@ -41,11 +41,11 @@ inline bool json_is_number(const JsonValuePtr& value) {
 }
 
 inline bool json_is_true(const JsonValuePtr& value) {
-    return value && json_is_true(*value);
+    return value && value->is_boolean() && std::static_pointer_cast<JsonBoolean>(value)->value();
 }
 
 inline bool json_is_false(const JsonValuePtr& value) {
-    return value && json_is_false(*value);
+    return value && value->is_boolean() && !std::static_pointer_cast<JsonBoolean>(value)->value();
 }
 
 inline bool json_is_boolean(const JsonValuePtr& value) {
@@ -59,16 +59,16 @@ inline bool json_is_null(const JsonValuePtr& value) {
 // Equality functions
 inline bool json_equal(const JsonValuePtr& value1, const JsonValuePtr& value2) {
     if (!value1 || !value2) return false;
-    return json_equals(*value1, *value2);
+    return value1->equals(*value2);
 }
 
 // Copy functions
 inline JsonValuePtr json_copy(const JsonValuePtr& value) {
-    return value ? json_copy(*value) : nullptr;
+    return value ? value->clone() : nullptr;
 }
 
 inline JsonValuePtr json_deep_copy(const JsonValuePtr& value) {
-    return value ? json_deep_copy(*value) : nullptr;
+    return value ? value->deep_clone() : nullptr;
 }
 
 } // namespace jasson
