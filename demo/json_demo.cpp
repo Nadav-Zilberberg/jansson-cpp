@@ -1,6 +1,6 @@
-#include "jasson_cpp/jasson.hpp"
-#include "jasson_cpp/json_factory.hpp"
-#include "jasson_cpp/json_convenience.hpp"
+#include "jasson.hpp"
+#include "json_factory.hpp"
+#include "json_convenience.hpp"
 #include <iostream>
 #include <vector>
 #include <map>
