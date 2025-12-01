@@ -6,7 +6,7 @@ using namespace jasson;
 
 // Helper function to print JSON values
 void print_json(const std::string& name, JsonValuePtr json) {
-    std::cout << name << ": " << json->to_string() << std::endl;
+    std::cout << name << ": " << JsonDumper::dumps(json, true) << std::endl;
 }
 
 // Test basic JSON types
