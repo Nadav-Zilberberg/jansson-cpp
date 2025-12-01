@@ -1,27 +1,67 @@
-#ifndef JASSON_JSON_TYPES_HPP
-#define JASSON_JSON_TYPES_HPP
+#ifndef JSON_TYPES_HPP
+#define JSON_TYPES_HPP
 
 #include <cstdint>
+#include <string>
 
 namespace jasson {
 
 // JSON type enumeration
 enum class JsonType {
-    NULL_VALUE,
+    NULL_TYPE,
     BOOLEAN,
-    INTEGER,
-    REAL,
+    NUMBER,
     STRING,
     ARRAY,
     OBJECT
 };
 
-// JSON integer type (64-bit signed integer)
-using json_int_t = int64_t;
+// Type traits for JSON values
+template<typename T>
+struct JsonTypeTraits {
+    static constexpr JsonType type = JsonType::NULL_TYPE;
+};
 
-// JSON real type (double precision floating point)
-using json_real_t = double;
+template<>
+struct JsonTypeTraits<bool> {
+    static constexpr JsonType type = JsonType::BOOLEAN;
+};
+
+template<>
+struct JsonTypeTraits<int> {
+    static constexpr JsonType type = JsonType::NUMBER;
+};
+
+template<>
+struct JsonTypeTraits<long> {
+    static constexpr JsonType type = JsonType::NUMBER;
+};
+
+template<>
+struct JsonTypeTraits<long long> {
+    static constexpr JsonType type = JsonType::NUMBER;
+};
+
+template<>
+struct JsonTypeTraits<float> {
+    static constexpr JsonType type = JsonType::NUMBER;
+};
+
+template<>
+struct JsonTypeTraits<double> {
+    static constexpr JsonType type = JsonType::NUMBER;
+};
+
+template<>
+struct JsonTypeTraits<std::string> {
+    static constexpr JsonType type = JsonType::STRING;
+};
+
+template<>
+struct JsonTypeTraits<const char*> {
+    static constexpr JsonType type = JsonType::STRING;
+};
 
 } // namespace jasson
 
-#endif // JASSON_JSON_TYPES_HPP
+#endif // JSON_TYPES_HPP
