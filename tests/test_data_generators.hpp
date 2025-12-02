@@ -1,8 +1,8 @@
 #ifndef JANSSON_TEST_DATA_GENERATORS_HPP
 #define JANSSON_TEST_DATA_GENERATORS_HPP
 
-#include <json/json_value.hpp>
-#include <json/json_types.hpp>
+#include "../src/jasson.hpp"
+#include "../src/json_types.hpp"
 #include <string>
 #include <vector>
 #include <random>

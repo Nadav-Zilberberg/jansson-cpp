@@ -2,9 +2,9 @@
 #define JANSSON_TEST_BASE_HPP
 
 #include <gtest/gtest.h>
-#include <json/json_value.hpp>
-#include <json/json_types.hpp>
-#include <json/error.hpp>
+#include "../src/json_value.hpp"
+#include "../src/json_types.hpp"
+#include "../src/error.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -41,7 +41,7 @@ protected:
     // JSON validation helper
     bool isValidJson(const std::string& json_str) {
         try {
-            auto json = json::parse(json_str);
+            auto json = parse(json_str);
             return true;
         } catch (...) {
             return false;

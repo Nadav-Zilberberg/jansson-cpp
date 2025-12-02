@@ -1,9 +1,9 @@
 #ifndef JANSSON_TEST_UTILS_HPP
 #define JANSSON_TEST_UTILS_HPP
 
-#include <json/json_value.hpp>
-#include <json/json_types.hpp>
-#include <json/json_loader.hpp>
+#include "../src/json_value.hpp"
+#include "../src/json_types.hpp"
+#include "../src/json_loader.hpp"
 #include <string>
 #include <vector>
 #include <memory>
