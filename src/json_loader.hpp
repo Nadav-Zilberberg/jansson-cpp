@@ -2,6 +2,7 @@
 #define JSON_LOADER_HPP
 
 #include "json_value.hpp"
+#include "json_factory.hpp"
 #include <string>
 #include <sstream>
 #include <cctype>

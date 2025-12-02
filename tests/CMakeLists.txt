@@ -15,7 +15,7 @@ file(GLOB TEST_SOURCES "*.cpp")
 add_executable(jansson_tests ${TEST_SOURCES})
 
 # Link against the main library and GoogleTest
-target_link_libraries(jansson_tests
+target_link_libraries(jansson_tests PRIVATE --coverage
     GTest::gtest
     GTest::gtest_main
 )
@@ -34,3 +34,5 @@ set_target_properties(jansson_tests PROPERTIES
 # Register tests with CTest
 include(GoogleTest)
 gtest_discover_tests(jansson_tests)
+
+target_compile_options(jansson_tests PRIVATE --coverage -O0 -g)

@@ -7,7 +7,7 @@
 #include <mutex>
 #include <string>
 
-namespace jansson {
+namespace jasson {
 namespace test {
 
 class MemoryLeakDetector {
@@ -82,35 +82,16 @@ private:
     bool monitoring_;
 };
 
-// Override global new and delete for memory leak detection
-inline void* operator new(std::size_t size, const std::string& file, int line) {
-    void* ptr = std::malloc(size);
-    if (ptr) {
-        MemoryLeakDetector::getInstance().recordAllocation(ptr, size, file, line);
-    }
-    return ptr;
+// Simple memory leak detection functions
+inline bool hasLeaks() {
+    return MemoryLeakDetector::getInstance().hasLeaks();
 }
 
-inline void* operator new[](std::size_t size, const std::string& file, int line) {
-    return operator new(size, file, line);
+inline std::string getLeakReport() {
+    return MemoryLeakDetector::getInstance().getLeakReport();
 }
-
-inline void operator delete(void* ptr) noexcept {
-    if (ptr) {
-        MemoryLeakDetector::getInstance().recordDeallocation(ptr);
-        std::free(ptr);
-    }
-}
-
-inline void operator delete[](void* ptr) noexcept {
-    operator delete(ptr);
-}
-
-// Macros for convenient memory leak detection
-#define NEW new(__FILE__, __LINE__)
-#define DELETE delete
 
 } // namespace test
-} // namespace jansson
+} // namespace jasson
 
 #endif // JANSSON_MEMORY_LEAK_DETECTOR_HPP
