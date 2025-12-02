@@ -35,3 +35,5 @@ stamp-h1
 cmake-build-debug/
 *.log
 *.trs
+tests/build
+.vscode/

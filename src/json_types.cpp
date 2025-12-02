@@ -1,4 +1,5 @@
-#include "json_types.hpp"
+#include "json_value.hpp"
+#include <memory>
 #include <algorithm>
 
 namespace jasson {
