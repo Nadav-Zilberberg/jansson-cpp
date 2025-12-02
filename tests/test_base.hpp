@@ -2,6 +2,7 @@
 #define JANSSON_TEST_BASE_HPP
 
 #include <gtest/gtest.h>
+#include "../src/json_loader.hpp"
 #include "../src/json_value.hpp"
 #include "../src/json_types.hpp"
 #include "../src/error.hpp"
@@ -9,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace jansson {
+namespace jasson {
 namespace test {
 
 class JsonTestBase : public ::testing::Test {
@@ -41,7 +42,7 @@ protected:
     // JSON validation helper
     bool isValidJson(const std::string& json_str) {
         try {
-            auto json = parse(json_str);
+            auto json = jasson::json_load(json_str);
             return true;
         } catch (...) {
             return false;
@@ -53,6 +54,6 @@ private:
 };
 
 } // namespace test
-} // namespace jansson
+} // namespace jasson
 
 #endif // JANSSON_TEST_BASE_HPP
