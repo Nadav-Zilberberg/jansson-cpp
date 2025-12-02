@@ -6,8 +6,10 @@ Jansson README
 
 |tests| |appveyor|
 
-Jansson_ is a C library for encoding, decoding and manipulating JSON
-data. Its main features and design principles are:
+Jansson_ is a modern C++ JSON library for encoding, decoding and manipulating JSON
+data. This repository has been converted from the original C implementation to
+modern C++ with RAII, smart pointers, exceptions, namespaces, classes, and type
+traits. Its main features and design principles are:
 
 - Simple and intuitive API and data model
 
@@ -17,7 +19,9 @@ data. Its main features and design principles are:
 
 - Full Unicode support (UTF-8)
 
-- Extensive test suite
+- Extensive test suite using GoogleTest
+
+- Modern C++17 or later implementation
 
 Jansson is licensed under the `MIT license`_; see LICENSE in the
 source distribution for details.
@@ -25,22 +29,24 @@ source distribution for details.
 Compilation and Installation
 ----------------------------
 
-If you obtained a ``jansson-X.Y.tar.*`` tarball from GitHub Releases, just use
-the standard autotools commands::
+This is a CMake-based project. To build and install:
 
-   $ ./configure
+   $ mkdir build && cd build
+   $ cmake ..
    $ make
    $ make install
 
-To run the test suite, invoke::
+To run the test suite with coverage analysis::
 
-   $ make check
+   $ cd tests
+   $ mkdir build && cd build
+   $ cmake ..
+   $ make
+   $ ./jansson_tests
+   $ lcov --ignore-errors mismatch --directory . --capture --output-file coverage.info
+   $ genhtml coverage.info --output-directory coverage_html
 
-If the source has been checked out from a Git repository, the ``configure``
-script has to be generated first. The easiest way is to use autoreconf::
-
-   $ autoreconf -i
-
+The coverage report will be generated in the ``coverage_html`` directory.
 
 Documentation
 -------------
@@ -54,7 +60,6 @@ HTML documentation, invoke::
 
 Then, point your browser to ``doc/_build/html/index.html``. Sphinx_
 1.0 or newer is required to generate the documentation.
-
 
 Community
 ---------
