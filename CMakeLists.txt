@@ -1,8 +1,9 @@
 cmake_minimum_required (VERSION 3.10)
-project(jansson C)
+project(jansson C CXX)
 
 # Options
 option(JANSSON_BUILD_SHARED_LIBS "Build shared libraries." OFF)
+option(JANSSON_BUILD_TESTS "Build tests with GoogleTest." ON)
 option(USE_URANDOM "Use /dev/urandom to seed the hash function." ON)
 option(USE_WINDOWS_CRYPTOAPI "Use CryptGenRandom to seed the hash function." ON)
 option(USE_DTOA "Use dtoa for optimal floating-point to string conversions." ON)
@@ -361,6 +362,7 @@ target_compile_definitions(jansson PRIVATE HAVE_CONFIG_H)
 
 target_include_directories(jansson
 	PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+	PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	INTERFACE $<INSTALL_INTERFACE:include>
 )
 
@@ -654,6 +656,23 @@ if (JANSSON_INSTALL)
 
   install(FILES ${JANSSON_HDR_PUBLIC}
           DESTINATION "include")
+
+n# GoogleTest configuration
+if(JANSSON_BUILD_TESTS)
+	enable_testing()
+	find_package(GTest QUIET)
+	if(NOT GTest_FOUND)
+		include(FetchContent)
+		FetchContent_Declare(
+			googletest
+			URL https://github.com/google/googletest/archive/refs/tags/release-1.12.1.zip
+		)
+		FetchContent_MakeAvailable(googletest)
+	endif()
+endif()
+n  if(JANSSON_BUILD_TESTS)
+    add_subdirectory(tests)
+  endif()
 
   # Install the pkg-config.
   install(FILES
