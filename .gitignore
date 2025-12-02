@@ -36,3 +36,4 @@ cmake-build-debug/
 *.log
 *.trs
 tests/build
+.vscode/
