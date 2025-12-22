@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include "jansson.h"
 #include "memory.hpp"
+#include <vector>
 
 namespace jansson {
 

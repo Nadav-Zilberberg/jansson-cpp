@@ -1,5 +1,5 @@
-#ifndef JASSON_JSON_UNPACKER_HPP
-#define JASSON_JSON_UNPACKER_HPP
+#ifndef JANSSON_JSON_UNPACKER_HPP
+#define JANSSON_JSON_UNPACKER_HPP
 
 #include <string>
 #include <string_view>
@@ -30,24 +30,18 @@ public:
     static bool unpack(const Value& root, std::string_view format, Args&&... args);
 
     template<typename... Args>
-    static bool unpack_ex(const Value& root, Error& error, size_t flags, 
+    static bool unpack_ex(const Value& root, jansson::JsonError& error, size_t flags,
                          std::string_view format, Args&&... args);
 
+private:
     template<typename T>
     static bool unpack_value(const Value& json, T& target);
 
-private:
     template<typename T>
     static bool unpack_array(const Value& json, std::vector<T>& target);
 
     template<typename... Args>
     static bool unpack_object(const Value& json, Args&&... args);
-
-    template<typename T>
-    static bool unpack_optional(const Value& json, std::optional<T>& target);
-
-    template<typename... Args>
-    static bool unpack_variant(const Value& json, std::variant<Args...>& target);
 };
 
 template<typename... Args>
@@ -57,4 +51,4 @@ bool unpack(const JsonValue& root, std::string_view format, Args&&... args) {
 
 } // namespace jasson
 
-#endif // JASSON_JSON_UNPACKER_HPP
+#endif // JANSSON_JSON_UNPACKER_HPP
