@@ -5,7 +5,7 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
-#include "utf.h"
+#include "utf.hpp"
 #include <algorithm>
 #include <stdexcept>
 #include <cstdint>

@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "jansson.h"
-#include "jansson_private.h"
+#include "memory.hpp"
 
 typedef struct {
     json_malloc_t malloc_fn;

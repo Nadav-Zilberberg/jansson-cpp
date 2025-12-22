@@ -1,5 +1,5 @@
-#ifndef JASSON_JSON_PACKER_HPP
-#define JASSON_JSON_PACKER_HPP
+#ifndef JANSSON_JSON_PACKER_HPP
+#define JANSSON_JSON_PACKER_HPP
 
 #include <string>
 #include <string_view>
@@ -30,7 +30,7 @@ public:
     static std::unique_ptr<Value> pack(std::string_view format, Args&&... args);
 
     template<typename... Args>
-    static std::unique_ptr<Value> pack_ex(Error& error, size_t flags, std::string_view format, Args&&... args);
+    static std::unique_ptr<Value> pack_ex(jansson::JsonError& error, size_t flags, std::string_view format, Args&&... args);
 
     template<typename T>
     static std::unique_ptr<Value> pack_value(T&& value);
@@ -56,4 +56,4 @@ std::unique_ptr<JsonValue> pack(std::string_view format, Args&&... args) {
 
 } // namespace jasson
 
-#endif // JASSON_JSON_PACKER_HPP
+#endif // JANSSON_JSON_PACKER_HPP

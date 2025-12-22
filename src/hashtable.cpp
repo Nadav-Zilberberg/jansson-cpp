@@ -7,7 +7,7 @@
 
 #include "hashtable.hpp"
 #include "hashtable_seed.hpp"
-#include "../src/lookup3.h"
+#include "lookup3.hpp"
 #include <algorithm>
 #include <utility>
 
