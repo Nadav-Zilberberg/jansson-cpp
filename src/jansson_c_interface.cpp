@@ -72,3 +72,54 @@ JANSSON_API void json_decref(json_t* json) {
 }
 
 } // extern "C"
+
+// Type checking functions
+JANSSON_API int json_is_object(const json_t *json) {
+    jasson::JsonValue* obj = get_cpp_object(const_cast<json_t*>(json));
+    return obj && obj->is_object() ? 1 : 0;
+}
+
+JANSSON_API int json_is_array(const json_t *json) {
+    jasson::JsonValue* obj = get_cpp_object(const_cast<json_t*>(json));
+    return obj && obj->is_array() ? 1 : 0;
+}
+
+JANSSON_API int json_is_string(const json_t *json) {
+    jasson::JsonValue* obj = get_cpp_object(const_cast<json_t*>(json));
+    return obj && obj->is_string() ? 1 : 0;
+}
+
+JANSSON_API int json_is_integer(const json_t *json) {
+    jasson::JsonValue* obj = get_cpp_object(const_cast<json_t*>(json));
+    return obj && obj->is_integer() ? 1 : 0;
+}
+
+JANSSON_API int json_is_real(const json_t *json) {
+    jasson::JsonValue* obj = get_cpp_object(const_cast<json_t*>(json));
+    return obj && obj->is_real() ? 1 : 0;
+}
+
+JANSSON_API int json_is_number(const json_t *json) {
+    jasson::JsonValue* obj = get_cpp_object(const_cast<json_t*>(json));
+    return obj && obj->is_number() ? 1 : 0;
+}
+
+JANSSON_API int json_is_true(const json_t *json) {
+    jasson::JsonValue* obj = get_cpp_object(const_cast<json_t*>(json));
+    return obj && obj->is_boolean() && static_cast<jasson::JsonBoolean*>(obj)->value() ? 1 : 0;
+}
+
+JANSSON_API int json_is_false(const json_t *json) {
+    jasson::JsonValue* obj = get_cpp_object(const_cast<json_t*>(json));
+    return obj && obj->is_boolean() && !static_cast<jasson::JsonBoolean*>(obj)->value() ? 1 : 0;
+}
+
+JANSSON_API int json_is_boolean(const json_t *json) {
+    jasson::JsonValue* obj = get_cpp_object(const_cast<json_t*>(json));
+    return obj && obj->is_boolean() ? 1 : 0;
+}
+
+JANSSON_API int json_is_null(const json_t *json) {
+    jasson::JsonValue* obj = get_cpp_object(const_cast<json_t*>(json));
+    return obj && obj->is_null() ? 1 : 0;
+}
