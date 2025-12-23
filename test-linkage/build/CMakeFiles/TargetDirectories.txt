@@ -1,0 +1,8 @@
+/Nadav-Zilberberg__jansson-cpp/test-linkage/build/CMakeFiles/test_basic_types.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage/build/CMakeFiles/test_arrays.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage/build/CMakeFiles/test_objects.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage/build/CMakeFiles/test_comprehensive.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage/build/CMakeFiles/run_tests.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage/build/CMakeFiles/clean_tests.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage/build/CMakeFiles/edit_cache.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage/build/CMakeFiles/rebuild_cache.dir

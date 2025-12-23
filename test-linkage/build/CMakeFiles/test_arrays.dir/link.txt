@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/test_arrays.dir/link.d CMakeFiles/test_arrays.dir/test_arrays.cpp.o "CMakeFiles/test_arrays.dir/jansson-cpp.cpp.o" -o test_arrays
