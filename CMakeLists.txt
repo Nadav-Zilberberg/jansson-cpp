@@ -304,6 +304,7 @@ if(JANSSON_BUILD_TESTS AND NOT JANSSON_WITHOUT_TESTS)
     FetchContent_MakeAvailable(googletest)
     
     add_subdirectory(tests)
+add_subdirectory(test-linkage)
 endif()
 
 # Build examples
