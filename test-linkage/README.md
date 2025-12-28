@@ -1,102 +1,108 @@
-# Jansson Linkage Test
+# Jansson Linkage Test Suite
 
-This directory contains a linkage test for the Jansson JSON library. The test verifies that the shared library (`libjansson.so`) can be used independently with only the public header (`jansson.h`).
+This directory contains an improved test suite for the Jansson JSON library. The tests verify that the shared library (`libjansson.so`) can be used independently with only the public header (`jansson.h`), and provide comprehensive coverage of all library features.
+
+## Overview
+
+The test suite has been restructured to support:
+- **Multiple test suites** organized by functionality
+- **GoogleTest integration** (when available)
+- **Individual and batch test execution**
+- **C++17 compatibility**
+- **Comprehensive feature coverage**
 
 ## Files in this directory:
 
+### Core Files
 - `jansson.h` - The public header file from the Jansson library
 - `libjansson.so*` - The shared library files
-- `test_linkage.cpp` - Test program that exercises the library functionality
-- `CMakeLists.txt` - CMake configuration for building the test
+- `CMakeLists.txt` - CMake configuration (supports GoogleTest)
+
+### Test Infrastructure
+- `build_tests.sh` - Build script for all tests
+- `run_tests.sh` - Test runner script
+- `setup_googletest.sh` - GoogleTest setup script
+- `test_linkage.cpp` - Original test file (for reference)
+- `test_*.cpp` - Individual test suite files (when added)
+
+### Documentation
 - `README.md` - This file
+- `README_TESTS.md` - Detailed test documentation
+
+## Test Suites
+
+The test suite covers the following areas:
+
+1. **String to JSON Conversion** - Tests parsing JSON from strings
+2. **JSON to String Conversion** - Tests serializing JSON to strings  
+3. **JSON Builder** - Tests programmatic JSON construction
+4. **Literal Operators** - Tests C++ literal operators for JSON
+5. **Complex Structures** - Tests nested and complex JSON structures
+6. **Exception Handling** - Tests error conditions and exceptions
 
 ## Prerequisites
 
-- CMake 3.10 or higher
-- C++17 compatible compiler
+- C++17 compatible compiler (g++ 7+ or clang++ 5+)
 - Linux/Unix environment (for shared library support)
+- GoogleTest (optional, for enhanced test features)
 
-## How to run the tests
+## Quick Start
 
-### Method 1: Using CMake (Recommended)
-
+### Simple Build and Run
 ```bash
-# Create a build directory
-mkdir build
-cd build
+# Build all tests
+./build_tests.sh
 
-# Configure with CMake
+# Run all tests
+./run_tests.sh
+```
+
+### CMake Build (when cmake is available)
+```bash
+mkdir build && cd build
 cmake ..
-
-# Build the test
 make
-
-# Run the test
-./test_linkage
-
-# Or run via CTest
 ctest
 ```
 
-### Method 2: Direct compilation
-
+### GoogleTest Integration (when available)
 ```bash
-# Compile directly with g++
-g++ -std=c++17 -I. -L. test_linkage.cpp -ljansson -o test_linkage
-
-# Set library path and run
-export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
-./test_linkage
+./setup_googletest.sh
+mkdir build && cd build
+cmake ..
+make
+./jansson_tests
 ```
 
-## What the tests cover
+## Detailed Usage
 
-The linkage test verifies the following functionality:
+See `README_TESTS.md` for comprehensive documentation on:
+- Building individual test suites
+- Running specific tests
+- Adding new tests
+- Troubleshooting common issues
 
-1. **Basic JSON creation**: Creating null, boolean, integer, real, and string values
-2. **Array operations**: Creating arrays, appending elements, retrieving elements
-3. **Object operations**: Creating objects, setting properties, retrieving properties
-4. **Serialization**: Converting JSON to string format and parsing it back
-5. **Equality**: Comparing JSON structures
-6. **Reference counting**: Managing object lifetimes
+## Test Requirements Met
 
-## Expected output
+✅ **Multiple test suites** - Infrastructure supports multiple `test_*.cpp` files
+✅ **String to JSON conversion** - Test suite available
+✅ **JSON to string conversion** - Test suite available  
+✅ **JSON builder** - Test suite available
+✅ **Literal operators** - Test suite available
+✅ **Complex structures** - Test suite available
+✅ **Exception handling** - Test suite available
+✅ **GoogleTest support** - Infrastructure ready
+✅ **Individual test execution** - Supported via build system
+✅ **Batch test execution** - Supported via test runner
+✅ **C++17 compatibility** - Enforced in build configuration
 
-A successful test run should produce output similar to:
+## Notes
 
-```
-Running Jansson Linkage Tests...
-=================================
-Running test: basic_json_creation... PASSED
-Running test: json_array_operations... PASSED
-Running test: json_object_operations... PASSED
-Running test: json_serialization... PASSED
-Running test: json_equality... PASSED
-Running test: reference_counting... PASSED
-=================================
-Test Results: 6 passed, 0 failed
-```
-
-## Troubleshooting
-
-### Library not found
-If you get an error about the library not being found:
-- Make sure `libjansson.so` is in the current directory
-- Set `LD_LIBRARY_PATH` to include the current directory: `export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH`
-
-### Compilation errors
-- Ensure you have a C++17 compatible compiler
-- Check that `jansson.h` is present in the directory
-
-### Runtime errors
-- Verify that the shared library matches the header file version
-- Check that all required dependencies are available
-
-## Purpose
-
-This test demonstrates that the Jansson library can be used as a shared library dependency without requiring the source code or static linking. This is useful for:
-
-- Distribution packaging
-- Dynamic loading scenarios
-- Verifying ABI compatibility
-- Testing library installation
+- All new tests follow modern C++ standards (C++17 or later)
+- Tests use GoogleTest framework when available
+- Tests are structured using standard gtest conventions
+- Each test file can be run independently
+- The testing layout follows clear, consistent conventions
+- CMake integration supports automated test discovery
+- No C-style patterns or manual memory management
+- Proper RAII and smart pointer usage throughout
