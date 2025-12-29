@@ -1,102 +1,132 @@
-# Jansson Linkage Test
+# Jansson Linkage Tests
 
-This directory contains a linkage test for the Jansson JSON library. The test verifies that the shared library (`libjansson.so`) can be used independently with only the public header (`jansson.h`).
+This directory contains comprehensive linkage tests for the Jansson JSON library using GoogleTest framework.
 
-## Files in this directory:
+## Files in this directory
 
-- `jansson.h` - The public header file from the Jansson library
+- `jansson.h` - The Jansson library header file
 - `libjansson.so*` - The shared library files
-- `test_linkage.cpp` - Test program that exercises the library functionality
-- `CMakeLists.txt` - CMake configuration for building the test
-- `README.md` - This file
+- `CMakeLists.txt` - CMake configuration for building the tests
+- `README.md` - This documentation file
+- `test_*.cpp` - Individual test suites:
+  - `test_linkage.cpp` - Basic linkage and functionality tests
+  - `test_string_conversion.cpp` - String to JSON and JSON to string conversion tests
+  - `test_json_builder.cpp` - JSON object and array building tests
+  - `test_literals_and_exceptions.cpp` - JSON literal parsing and error handling tests
 
-## Prerequisites
+## Building and Running Tests
 
-- CMake 3.10 or higher
+### Prerequisites
+- CMake 3.28 or higher
 - C++17 compatible compiler
-- Linux/Unix environment (for shared library support)
+- GoogleTest (will be fetched automatically by CMake)
 
-## How to run the tests
-
-### Method 1: Using CMake (Recommended)
+### Build Instructions
 
 ```bash
-# Create a build directory
 mkdir build
 cd build
-
-# Configure with CMake
 cmake ..
-
-# Build the test
 make
-
-# Run the test
-./test_linkage
-
-# Or run via CTest
-ctest
 ```
 
-### Method 2: Direct compilation
+### Running Tests
 
 ```bash
-# Compile directly with g++
-g++ -std=c++17 -I. -L. test_linkage.cpp -ljansson -o test_linkage
+# Run all tests
+./jansson_linkage_tests
 
-# Set library path and run
-export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
-./test_linkage
+# Run specific test suite
+./jansson_linkage_tests --gtest_filter=StringConversionTest.*
+
+# Run with verbose output
+./jansson_linkage_tests --gtest_output=xml:test_results.xml
 ```
 
-## What the tests cover
+### Using CTest
 
-The linkage test verifies the following functionality:
+```bash
+# Run all tests through CTest
+ctest
 
-1. **Basic JSON creation**: Creating null, boolean, integer, real, and string values
-2. **Array operations**: Creating arrays, appending elements, retrieving elements
-3. **Object operations**: Creating objects, setting properties, retrieving properties
-4. **Serialization**: Converting JSON to string format and parsing it back
-5. **Equality**: Comparing JSON structures
-6. **Reference counting**: Managing object lifetimes
-
-## Expected output
-
-A successful test run should produce output similar to:
-
-```
-Running Jansson Linkage Tests...
-=================================
-Running test: basic_json_creation... PASSED
-Running test: json_array_operations... PASSED
-Running test: json_object_operations... PASSED
-Running test: json_serialization... PASSED
-Running test: json_equality... PASSED
-Running test: reference_counting... PASSED
-=================================
-Test Results: 6 passed, 0 failed
+# Run with verbose output
+ctest -V
 ```
 
-## Troubleshooting
+## Test Coverage
 
-### Library not found
-If you get an error about the library not being found:
-- Make sure `libjansson.so` is in the current directory
-- Set `LD_LIBRARY_PATH` to include the current directory: `export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH`
+The tests cover the following Jansson library features:
 
-### Compilation errors
-- Ensure you have a C++17 compatible compiler
-- Check that `jansson.h` is present in the directory
+1. **Basic JSON Types**
+   - Null values
+   - Boolean values (true/false)
+   - Integer numbers
+   - Real numbers
+   - Strings
 
-### Runtime errors
-- Verify that the shared library matches the header file version
-- Check that all required dependencies are available
+2. **JSON Objects**
+   - Object creation and destruction
+   - Property setting and getting
+   - Nested objects
 
-## Purpose
+3. **JSON Arrays**
+   - Array creation and destruction
+   - Element appending and retrieval
+   - Array size management
 
-This test demonstrates that the Jansson library can be used as a shared library dependency without requiring the source code or static linking. This is useful for:
+4. **String Conversion**
+   - Parsing JSON from strings
+   - Serializing JSON to strings
+   - Compact and pretty-printed formats
 
-- Distribution packaging
-- Dynamic loading scenarios
-- Verifying ABI compatibility
-- Testing library installation
+5. **Complex Structures**
+   - Nested objects and arrays
+   - Mixed data types
+   - Real-world JSON examples
+
+6. **Error Handling**
+   - Invalid JSON parsing
+   - Error reporting
+   - Graceful error recovery
+
+7. **Literals and Escaping**
+   - String escape sequences
+   - Array literals
+   - Object literals
+
+## Example Usage
+
+```cpp
+#include <gtest/gtest.h>
+extern "C" {
+#include "jansson.h"
+}
+
+TEST(MyTest, BasicJson) {
+    // Create a JSON object
+    json_t* obj = json_object();
+    ASSERT_NE(obj, nullptr);
+    
+    // Add properties
+    json_object_set(obj, "name", json_string("test"));
+    json_object_set(obj, "value", json_integer(42));
+    
+    // Serialize to string
+    char* json_str = json_dumps(obj, JSON_COMPACT);
+    EXPECT_STREQ(json_str, "{\"name\":\"test\",\"value\":42}");
+    
+    // Cleanup
+    free(json_str);
+    json_decref(obj);
+}
+```
+
+## Integration with Main Project
+
+These tests are designed to verify that the Jansson library can be properly linked and used from C++ code. They serve as both integration tests and examples of how to use the library in modern C++ applications.
+
+The tests follow modern C++ best practices:
+- Use of RAII principles (though the C library requires manual memory management)
+- Proper error handling
+- Comprehensive test coverage
+- Clear and descriptive test names
