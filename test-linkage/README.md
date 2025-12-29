@@ -100,3 +100,28 @@ This test demonstrates that the Jansson library can be used as a shared library 
 - Dynamic loading scenarios
 - Verifying ABI compatibility
 - Testing library installation
+
+## Recent Improvements
+
+The test-linkage folder has been significantly enhanced with modern C++ features:
+
+### New Features
+- **Modern C++ Interface**: Full C++17 support with RAII and smart pointers
+- **Exception Handling**: Custom exception hierarchy for better error reporting
+- **JSON Builder**: Fluent interface for constructing JSON objects
+- **Literal Operators**: Convenient JSON creation using user-defined literals
+- **Type Safety**: Strong typing with proper inheritance hierarchy
+- **Memory Safety**: Automatic resource management prevents memory leaks
+
+### Backward Compatibility
+All existing C code continues to work without modification. The C interface remains fully functional and compatible with the original jansson library.
+
+### Build Instructions
+```bash
+./final_build.sh
+```
+
+This will compile the shared library and run all tests automatically.
+
+### Usage Examples
+See IMPROVEMENTS.md for detailed usage examples and documentation.
