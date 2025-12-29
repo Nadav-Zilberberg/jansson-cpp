@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/test_literal_operators.dir/link.d CMakeFiles/test_literal_operators.dir/test_literal_operators.cpp.o -o test_literal_operators  /Nadav-Zilberberg__jansson-cpp/test-linkage-static/libjansson.a /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a -lpthread /usr/lib/x86_64-linux-gnu/libgtest.a

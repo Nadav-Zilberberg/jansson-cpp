@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/test_exceptions.dir/link.d CMakeFiles/test_exceptions.dir/test_exceptions.cpp.o -o test_exceptions  /Nadav-Zilberberg__jansson-cpp/test-linkage-static/libjansson.a /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a -lpthread /usr/lib/x86_64-linux-gnu/libgtest.a

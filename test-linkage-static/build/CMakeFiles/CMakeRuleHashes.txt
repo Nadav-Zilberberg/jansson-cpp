@@ -1,0 +1,2 @@
+# Hashes of file build rules.
+800d52a27348db47fdfd534a6eb182f4 CMakeFiles/run_static_tests

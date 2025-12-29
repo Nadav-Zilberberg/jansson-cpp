@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/test_json_to_string.dir/link.d CMakeFiles/test_json_to_string.dir/test_json_to_string.cpp.o -o test_json_to_string  /Nadav-Zilberberg__jansson-cpp/test-linkage-static/libjansson.a /usr/lib/x86_64-linux-gnu/libgtest.a /usr/lib/x86_64-linux-gnu/libgtest_main.a -lpthread /usr/lib/x86_64-linux-gnu/libgtest.a

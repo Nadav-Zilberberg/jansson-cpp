@@ -1,0 +1,9 @@
+/Nadav-Zilberberg__jansson-cpp/test-linkage-static/build/CMakeFiles/test_string_conversion.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage-static/build/CMakeFiles/test_json_to_string.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage-static/build/CMakeFiles/test_json_builder.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage-static/build/CMakeFiles/test_literal_operators.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage-static/build/CMakeFiles/test_complex_structures.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage-static/build/CMakeFiles/test_exceptions.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage-static/build/CMakeFiles/run_static_tests.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage-static/build/CMakeFiles/edit_cache.dir
+/Nadav-Zilberberg__jansson-cpp/test-linkage-static/build/CMakeFiles/rebuild_cache.dir
