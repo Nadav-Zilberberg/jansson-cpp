@@ -64,8 +64,9 @@ The C linkage test verifies the following functionality:
 1. **Basic JSON creation**: Creating null, boolean, integer, real, and string values
 2. **Array operations**: Creating arrays, appending elements, retrieving elements
 3. **Object operations**: Creating objects, setting properties, retrieving properties
-4. **Serialization**: Converting JSON to string format and parsing it back
-5. **Equality**: Comparing JSON structures
+4. **Serialization**: Converting JSON to string format
+5. **Deserialization**: Converting String to JSON 
+6. **Equality**: Comparing JSON structures
 
 ## Expected output
 
@@ -86,6 +87,7 @@ Running test: json_object_operations
 Running test: json_serialization
   Testing JSON serialization...
     Serialized JSON: {"data":["test",42],"name":"example"}
+  Deserialization test passed
   PASSED
 Running test: json_equality
   Testing JSON equality...
