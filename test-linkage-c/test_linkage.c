@@ -155,29 +155,40 @@ int test_json_serialization() {
     char* json_str = json_dumps(root, 0);  // Use 0 instead of JSON_COMPACT
     ASSERT_NOT_NULL(json_str);
     ASSERT_TRUE(strlen(json_str) > 0);
+    ASSERT_TRUE(strcmp(json_str, "{\"data\":[\"test\",42],\"name\":\"example\"}") == 0 ||
+                strcmp(json_str, "{\"name\":\"example\",\"data\":[\"test\",42]}") == 0);
     
     printf("    Serialized JSON: %s\n", json_str);
     
     // Deserialize back
     json_error_t error;
-    json_t* parsed = json_loads(json_str, 0, &error);
+    char* cmplx_json_str = "{\"meta\":{\"requestId\":\"req-8f3a9c21\",\"timestamp\":\"2025-01-15T12:34:56.789Z\",\"success\":true,\"version\":3,\"tags\":[\"test\",\"json\",\"complex\",\"edge-case\"]},\"user\":{\"id\":987654321012345700,\"username\":\"test_user_01\",\"email\":\"user@example.com\",\"roles\":[\"admin\",\"editor\",\"viewer\"],\"active\":true,\"lastLogin\":null},\"data\":{\"metrics\":{\"count\":123456,\"ratio\":0.987654321,\"maxValue\":10000,\"minValue\":-10000},\"matrix\":[[1,2,3],[4,5,6],[7,8,9]]},\"errors\":[],\"debug\":{\"processingTimeMs\":12.345,\"flags\":{\"experimental\":false,\"trace\":true}}}";
+    // char* cmplx_json_str = "{\"data\":[\"test\",42],\"name\":\"example\"}";
+    json_t* parsed = json_loads(cmplx_json_str, 0, &error);
     ASSERT_NOT_NULL(parsed);
     ASSERT_TRUE(json_is_object(parsed));
     
-    json_t* name = json_object_get(parsed, "name");
+    json_t* name = json_object_get(parsed, "meta");
     ASSERT_NOT_NULL(name);
-    ASSERT_TRUE(json_is_string(name));
-    ASSERT_EQ(strcmp(json_string_value(name), "example"), 0);
+    ASSERT_TRUE(json_is_object(name));
     
     json_t* data = json_object_get(parsed, "data");
     ASSERT_NOT_NULL(data);
-    ASSERT_TRUE(json_is_array(data));
-    ASSERT_EQ(json_array_size(data), 2);
+    ASSERT_TRUE(json_is_object(data));
+
+    json_t* user = json_object_get(parsed, "user");
+    ASSERT_NOT_NULL(user);
+    ASSERT_TRUE(json_is_object(user));
+    json_t* username = json_object_get(user, "username");
+    ASSERT_NOT_NULL(username);
+    ASSERT_TRUE(json_is_string(username));
+    ASSERT_EQ(strcmp(json_string_value(username), "test_user_01"), 0);
     
     free(json_str);
     json_decref(root);
     json_decref(parsed);
     
+    printf("  Deserialization test passed\n");
     printf("  PASSED\n");
     return 1;
 }
